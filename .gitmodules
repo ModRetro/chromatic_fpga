@@ -1,0 +1,3 @@
+[submodule "esp32t/src/Gameboy_MiSTer"]
+	path = esp32t/src/Gameboy_MiSTer
+	url = https://github.com/MiSTer-devel/Gameboy_MiSTer.git

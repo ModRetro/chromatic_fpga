@@ -1,0 +1,89 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW5A-25A" pn="GW5A-EV25UG256CC1/I0">gw5a25a-013</Device>
+    <FileList>
+        <File path="src/Gameboy_MiSTer/rtl/hdma.v" type="file.verilog" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/timer.v" type="file.verilog" enable="1"/>
+        <File path="src/fifo1k/fifo1k.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin_adc/gowin_adc.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin_pll_preevt/gowin_pll.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/ST7785_init.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/ST7785_panel_master.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/adc_wrap.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/aud_system_top.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/gb_burst_write.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/i2c_master.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/mem_system_top.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/mm_burst_read_to_stream.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/mm_burst_write.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/mpmc.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/polling_master.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/qspi_slave.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/system_monitor.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/system_monitor_arbiter.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/tlv320_init.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/uart/fixed_point_divider/fixed_point_divider.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/uart/uart.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/uart/usb_uart_config.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/uart_packet_wrapper_rx.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/uart_packet_wrapper_tx.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/vid_system_top.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/vid_tpg.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/cheatcodes.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/dpramV.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/dpram_difV.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/gb.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/link.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/sprites.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/video.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/CORE/videoBypass.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/audio_filter.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/cart.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/emu_system_top.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/EMU/iir_filter.sv" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/Gowin_PLL_UVC/Gowin_PLL_UVC.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/sync_fifo/sync_rx_pkt_fifo.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/sync_fifo/sync_tx_pkt_fifo.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/sync_fifo/usb_fifo.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/uart/uart.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb2_0_softphy/static_macro_define.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb2_0_softphy/usb2_0_softphy_encryption.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb2_0_softphy/usb2_0_softphy_name.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb2_0_softphy/usb2_0_softphy_top.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb_device_controller/usb_device_controller.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb_video/usb_defs.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb_video/usb_descriptor_video.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usb_video/uvc_defs.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/usbuvcuart_top.v" type="file.verilog" enable="1"/>
+        <File path="src/top.v" type="file.verilog" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/T80/T80.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/T80/T80_ALU.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/T80/T80_Pack.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/T80/T80_Reg.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/gb_savestates.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/gb_statemanager.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/Gameboy_MiSTer/rtl/reg_savestates.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/MultiPortRamCtrl.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/PSRAMBIST_Burst.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/PSRAMController.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/overlayBatteryBack.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/overlayBatteryFront.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/overlayDebug.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/overlayTimerBack.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/overlayTimerFront.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/overlayTimerNumber.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/uart/uart_rx.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/BSP/uart/uart_tx.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/EMU/CORE/T80/GBse.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/EMU/CORE/T80/T80_MCode.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/EMU/CORE/bus_savestates.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/EMU/CORE/gbc_snd.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/EMU/CORE/speedcontrol.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/board/evt1_x2/evt1_x2.cst" type="file.cst" enable="1"/>
+        <File path="src/board/evt1_x2/evt1_x2.sdc" type="file.sdc" enable="1"/>
+        <File path="src/rtl/BSP/tlv320regs.hex" type="file.other" enable="1"/>
+    </FileList>
+</Project>
