@@ -363,7 +363,7 @@ module system_monitor(
         1'd0,  // 1 bit reserved   
         1'd0,  // 1 bit debug,
         6'd0,  // 6 bits minor version
-        6'd17  // 6 bits major version
+        6'd18  // 6 bits major version
     };
     
     localparam  NUM_CH = 7;

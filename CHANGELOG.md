@@ -1,3 +1,14 @@
+## v18.0
+
+### Changed
+- Improved button debouncing.
+
+### Fixed
+- Fully mute game audio when speaker wheel is turned to minimum.
+- Silent mode mutes all device audio output.
+- Suppress invalid DPAD inputs to correct character sprite glitch.
+- Color decoding bug corrected (greyscale check).
+
 ## v17.0
 
 ### Note

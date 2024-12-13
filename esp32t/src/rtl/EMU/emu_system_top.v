@@ -48,7 +48,7 @@ module emu_system_top
     
 );
 
-    parameter SRSIZE = 3;
+    parameter SRSIZE = 15;
 
     reg [SRSIZE-1:0] BTN_DPAD_DOWN_sr;
     reg [SRSIZE-1:0] BTN_DPAD_UP_sr;
@@ -68,6 +68,11 @@ module emu_system_top
     reg BTN_SEL_filtered;
     reg BTN_B_filtered;
     reg BTN_A_filtered;
+    
+    reg BTN_DPAD_DOWN_filtered_dir;
+    reg BTN_DPAD_UP_filtered_dir;
+    reg BTN_DPAD_LEFT_filtered_dir;
+    reg BTN_DPAD_RIGHT_filtered_dir;
 
     always@(posedge pclk)
     begin
@@ -75,7 +80,6 @@ module emu_system_top
         BTN_DPAD_UP_sr <= {BTN_DPAD_UP_sr[SRSIZE-2:0], BTN_DPAD_UP&~BTN_MENU&MENU_CLOSED};
         BTN_DPAD_LEFT_sr <= {BTN_DPAD_LEFT_sr[SRSIZE-2:0], BTN_DPAD_LEFT&~BTN_MENU&MENU_CLOSED};
         BTN_DPAD_RIGHT_sr <= {BTN_DPAD_RIGHT_sr[SRSIZE-2:0], BTN_DPAD_RIGHT&~BTN_MENU&MENU_CLOSED};
-
         BTN_START_sr <= {BTN_START_sr [SRSIZE-2:0], BTN_START&~BTN_MENU&MENU_CLOSED};
         BTN_SEL_sr <= {BTN_SEL_sr [SRSIZE-2:0], BTN_SEL&~BTN_MENU&MENU_CLOSED};
         BTN_A_sr <= {BTN_A_sr [SRSIZE-2:0], BTN_A&~BTN_MENU&MENU_CLOSED};
@@ -89,16 +93,22 @@ module emu_system_top
         BTN_SEL_filtered <= &BTN_SEL_sr[SRSIZE-1:1];
         BTN_A_filtered <= &BTN_A_sr[SRSIZE-1:1];
         BTN_B_filtered <= &BTN_B_sr[SRSIZE-1:1];
+        
+        BTN_DPAD_DOWN_filtered_dir  <= BTN_DPAD_DOWN_filtered  & ~BTN_DPAD_UP_filtered;
+        BTN_DPAD_UP_filtered_dir    <= BTN_DPAD_UP_filtered    & ~BTN_DPAD_DOWN_filtered;
+        BTN_DPAD_LEFT_filtered_dir  <= BTN_DPAD_LEFT_filtered  & ~BTN_DPAD_RIGHT_filtered;
+        BTN_DPAD_RIGHT_filtered_dir <= BTN_DPAD_RIGHT_filtered & ~BTN_DPAD_LEFT_filtered;
+        
     end
 
-    wire [3:0] btn_key = {//4'd0;/*{
-        BTN_DPAD_DOWN_filtered, // this position in the core is down
-        BTN_DPAD_UP_filtered, //this position in the core should be up
-        BTN_DPAD_LEFT_filtered, // this position in the core should be left
-        BTN_DPAD_RIGHT_filtered
+    wire [3:0] btn_key = {
+        BTN_DPAD_DOWN_filtered_dir, 
+        BTN_DPAD_UP_filtered_dir,
+        BTN_DPAD_LEFT_filtered_dir, 
+        BTN_DPAD_RIGHT_filtered_dir
     }; 
      
-    wire [3:0] dpad_key = {//4'd0;/*{
+    wire [3:0] dpad_key = {
         BTN_START_filtered,
         BTN_SEL_filtered,
         BTN_B_filtered,

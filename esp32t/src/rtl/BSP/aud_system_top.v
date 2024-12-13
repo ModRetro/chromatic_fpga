@@ -33,8 +33,10 @@ module aud_system_top(
     wire [7:0] hpgpio;
     assign hHeadphones = hpgpio[1];
     
-    wire [15:0] left_m = software_mute ? 16'd0 : left;
-    wire [15:0] right_m = software_mute ? 16'd0 : right;
+    wire mute = (software_mute | volume > 8'h76);
+    
+    wire [15:0] left_m =  mute ? 16'd0 : left;
+    wire [15:0] right_m = mute ? 16'd0 : right;
 
     reg [16:0] gMonoSpeaker;
     always @(posedge gClk)
@@ -112,6 +114,7 @@ module aud_system_top(
         .rst(~reset_n),
         .i2c_busy(i2c_busy),
         .enable(tlv320_init_done),
+        .mute(software_mute),
         
         .volume(volume),
         .gpio(hpgpio),
