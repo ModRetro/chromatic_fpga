@@ -15,7 +15,7 @@ git submodule update --init --remote --recursive
 
 ### Gowin Development Environment
 
-The Gowin FPGA Designer must be installed (Gowin IDE v1.9.9.03 or newer must be used).
+**The Gowin FPGA Designer v1.9.9.03 must be used.** Using Gowin IDE v1.9.10.X or newer is currently not supported by this build.
 
 You will also need to apply for a local license with Gowin through their website:
 https://www.gowinsemi.com/en/support/license
