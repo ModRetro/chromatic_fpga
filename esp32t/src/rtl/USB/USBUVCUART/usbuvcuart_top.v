@@ -588,7 +588,8 @@ module usbuvcuart_top(
                                             end
                                         end
                         
-                            if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)) 
+                            if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)
+                               ||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
                             begin
                                 if (wIndex[7:0] == 8'h01) 
                                 begin //Video Steam Interface
@@ -790,7 +791,8 @@ module usbuvcuart_top(
                         end // if (wIndex[7:0] == 8'h01) 
                     end // if(bRequest == `SET_CUR) 
                     else 
-                        if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)) 
+                        if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)
+                            ||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
                         begin
                             stage <= 8'd0;
                             if (wIndex[7:0] == 8'h01) 
@@ -891,7 +893,8 @@ module usbuvcuart_top(
                                     end
                                 end //if (wValue[15:8] == `VS_PROBE_CONTROL)                                
                             end //if (wIndex[7:0] == 8'h01) 
-                        end // if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)) 
+                        end // if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF))
+                            //||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
                         else 
                         begin
                             stage <= 8'd0;
