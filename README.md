@@ -58,7 +58,13 @@ index 0:
 openFPGALoader --write-flash --cable gwu2x --reset <file>
 ```
 
-Here, `<file>` refers to the generated bitstream file. This file can be found at esp32t/impl/pnr/evt1_x2.fs.
+Here, `<file>` refers to the generated bitstream file. This file can be found at `esp32t/impl/pnr/evt1_x2.fs`.
+
+## Custom Modifications
+
+When modifying the RTL design, please also update the 14-bit FPGA version within [esp32t/src/rtl/BSP/system_monitor.sv] around line 362 (see `version`).
+
+This will ensure you can always using the [ModRetro Update Tool](https://modretro.com/pages/downloads#mrupdater) to restore your Chromatic to the latest official release.
 
 ## Issues
 Please submit all issues and bug reports through our [Contact Form](https://modretro.com/pages/contact).
