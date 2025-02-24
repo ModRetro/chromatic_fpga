@@ -29,6 +29,7 @@ module vid_system_top #(parameter ISSIMU=0)
     input               colorCorrectionEnableLCD,
     input               colorCorrectionEnableUVC,
     input               voltageLow,
+    input [1:0]         lowBattDispMode,
     input               showTimer,
     input               runTimer,
     input               resetTimer,
@@ -190,6 +191,20 @@ module vid_system_top #(parameter ISSIMU=0)
     reg [3:0] timeMH = 4'd0;
     reg [3:0] timeHL = 4'd0;
     
+    // Flash the low battery indicator when configured
+    localparam LB_VIS_SHOW  = 2'b00;
+    localparam LB_VIS_BLINK = 2'b01;
+    localparam LB_VIS_HIDE  = 2'b10;
+    localparam LB_VIS_RSVD  = 2'b11;
+
+    typedef enum reg {
+        LBB_HIDE = 1'b0,
+        LBB_SHOW = 1'b1
+    } low_batt_blink_state_t;
+
+    low_batt_blink_state_t LBBState = LBB_HIDE;
+    reg showLowBatt = 0;
+
     always@(posedge gClk) begin
         if (runTimer && gPercentEna) begin
             if (timePL == 4'd9) begin
@@ -245,6 +260,30 @@ module vid_system_top #(parameter ISSIMU=0)
             timeMH <= 4'd0;
             timeHL <= 4'd0;
         end
+
+        if ( lowBattDispMode == LB_VIS_BLINK ) begin
+            if (gSecondEna == 1) begin
+                case (LBBState)
+                    LBB_HIDE: begin
+                        LBBState <= LBB_SHOW;
+                    end
+
+                    LBB_SHOW: begin
+                        LBBState <= LBB_HIDE;
+                    end
+                endcase
+            end
+
+            showLowBatt <= (LBBState == LBB_SHOW);
+        end else if ( lowBattDispMode == LB_VIS_HIDE ) begin
+            LBBState <= LBB_HIDE;
+            showLowBatt <= 0;
+        end else begin
+            LBBState <= LBB_HIDE;
+            showLowBatt <= ((lowBattDispMode == LB_VIS_SHOW) || (lowBattDispMode == LB_VIS_RSVD));
+        end
+
+
     end
     
     wire [1:0] screenXNumber = (screenX >=  4 && screenX <=  6) ? (screenX -  4) :
@@ -331,13 +370,13 @@ module vid_system_top #(parameter ISSIMU=0)
             end else if (debug_system_on && screenX <= 31 && screenY >= 136) begin
                overlayColor  <= {6'h3F, 6'h3F, 6'h3F}; // white
                overlayActive <= 1'b1;            
-            end else if (voltageLow && overlayActive_batteryFront) begin
+            end else if (voltageLow && showLowBatt && overlayActive_batteryFront) begin
                overlayColor  <= {6'h00, 6'h00, 6'h3F}; // red
                overlayActive <= 1'b1;
             end else if (showTimer && (overlayActive_TimerFront || overlayActive_TimerNumber)) begin
                overlayColor  <= {6'h3F, 6'h3F, 6'h3F}; // white
                overlayActive <= 1'b1;
-            end else if ((voltageLow && overlayActive_batteryBack) || (showTimer && overlayActive_TimerBack)) begin
+            end else if ((voltageLow && showLowBatt && overlayActive_batteryBack) || (showTimer && overlayActive_TimerBack)) begin
                overlayCrush  <= 1'b1;
             end
         end

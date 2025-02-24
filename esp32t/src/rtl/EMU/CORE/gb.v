@@ -28,6 +28,7 @@ module gb (
 
     input isGBC,
     input real_cgb_boot,
+    input paletteOff,
 
     // cartridge interface
     // can adress up to 1MB ROM
@@ -824,6 +825,7 @@ videoBypass videoBypass (
     .megaduck    ( megaduck      ),
 
     .boot_rom_en ( boot_rom_enabled ),
+    .paletteOff ( paletteOff ),
 
     .cpu_sel_reg ( sel_video_reg ),
     .cpu_sel_oam ( sel_video_oam ),

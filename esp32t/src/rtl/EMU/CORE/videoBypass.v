@@ -29,6 +29,7 @@ module videoBypass (
     input  megaduck,
 
     input  boot_rom_en,
+    input  paletteOff,
 
     // cpu register adn oam interface
     input  cpu_sel_oam,
@@ -596,7 +597,7 @@ always @(posedge clk) begin
     end
 end
 
-assign lcd_data = 15'h7FFF;
+assign lcd_data = (isGBC_mode || ~paletteOff) ? 15'h7FFF : { bgpd[1][6:0],bgpd[0] };
 assign lcd_clkena = lcd_clk_out;
 
 endmodule

@@ -27,7 +27,6 @@
         <File path="src/rtl/BSP/tlv320_init.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/uart/fixed_point_divider/fixed_point_divider.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/uart/uart.v" type="file.verilog" enable="1"/>
-        <File path="src/rtl/BSP/uart/usb_uart_config.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/uart_packet_wrapper_rx.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/uart_packet_wrapper_tx.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/vid_system_top.v" type="file.verilog" enable="1"/>

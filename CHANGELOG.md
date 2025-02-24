@@ -1,3 +1,19 @@
+## v18.4
+
+### Added
+- Option to ignore diagonal inputs from the D-Pad
+- Option to use the background palette 0 color (prevents screen transition flash)
+- Option to set low battery icon display behavior
+
+### Changed
+- Tuned battery thresholds for 1.2V NiMH AA's
+
+### Fixed
+- Reduce backlight flashing when power source is nearly depleted
+- Support for Kirby Tilt-n-Tumble
+- Improved Chromatic firmware version detection
+- Support streaming to Linux platforms
+
 ## v18.0
 
 ### Changed

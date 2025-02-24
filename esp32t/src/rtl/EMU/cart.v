@@ -61,6 +61,7 @@ module cart
     
     reg p1;
     reg p2;
+    reg [1:0] phiCnt;
     always@(posedge hclk)
     begin
         if(gbreset)
@@ -131,12 +132,22 @@ module cart
                     counter <= 'd0;
                 else
                     counter <= counter + 1'd1;
-            
+                                       
+                    phiCnt <= phiCnt + 1'd1;
+                
                 case(counter)
                 16'd0:
                 begin
-                    if(cpu_halt & ~cpu_stop)
-                        phi     <=   1'd1;
+                    if(cpu_halt & ~cpu_stop) begin
+                        if (~hdma_active) begin
+                           phi     <= 1'd1;
+                           phiCnt  <= 2'd0;  
+                        end else begin
+                           if (phiCnt == 2'd3) begin
+                              phi <= ~phi;
+                           end
+                        end
+                    end
                     CART_RD <=   1'd0;
                     CART_CS <=   1'd1;
                 end

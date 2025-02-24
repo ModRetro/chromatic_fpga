@@ -31,7 +31,7 @@ module system_monitor(
     output  reg         LED_Green,
     output  reg         LED_Red,
     output  reg         LED_Yellow,
-    output  reg [13:0]  system_control = 'd1,
+    output  reg [15:0]  system_control,
     output  reg [31:0]  debug_system,
     input   [7:0]       uart_rx_data,
     input               uart_rx_val,
@@ -81,15 +81,23 @@ module system_monitor(
     reg request_version  = 1'b0;
     reg updateBrightness = 1'b0;
     
+    reg lowpowerBacklight = 1'b0;
+    reg [3:0] lowerpowerOldBL;
+    reg request_SystemStatusExtended = 1'b0;
+    
+    reg [13:0] volt;
+    wire       bat_is_LI;
+    
     always@(posedge clk or posedge reset)
     begin
         if(reset)
-            system_control <= 14'd1;
+            system_control <= 16'd1;
         else
         begin
-            request_buttons  <= 1'b0;
-            request_version  <= 1'b0;
-            updateBrightness <= 1'b0;
+            request_buttons              <= 1'b0;
+            request_version              <= 1'b0;
+            updateBrightness             <= 1'b0;
+            request_SystemStatusExtended <= 1'b0;
             
             if (gHalfSecondEna) begin
                LCD_BACKLIGHT_INIT  <= 1'd1;
@@ -108,7 +116,7 @@ module system_monitor(
                     end
                 end
                 if(rx_address == 7'd4) begin
-                    system_control  <=  rx_data[13:0];
+                    system_control  <=  rx_data[15:0];
                 end
                 if(rx_address == 7'd2) begin
                     request_buttons <= 1'b1;
@@ -135,6 +143,26 @@ module system_monitor(
                     end
                 end
             end
+            
+            if (lowpowerBacklight) begin
+               brightness       <= 4'd0;
+               updateBrightness <= 1'b0;
+            end
+            
+            if (volt >= 700) begin // ~1.8V
+               if (~lowpowerBacklight && ~bat_is_LI && volt < 979) begin // below 2.55 V
+                  request_SystemStatusExtended <= 1'b1;
+                  lowpowerBacklight            <= 1'b1;
+                  lowerpowerOldBL              <= brightness;
+               end       
+               
+               if (lowpowerBacklight && ~bat_is_LI && volt > 1293) begin // above 3.4 V
+                  request_SystemStatusExtended <= 1'b1;
+                  lowpowerBacklight            <= 1'b0;
+                  brightness                   <= lowerpowerOldBL;
+               end
+            end
+            
         end
     end
 
@@ -223,16 +251,15 @@ module system_monitor(
         end
     end
 
-   wire       bat_is_LI = startup_select[10];
+   assign     bat_is_LI = startup_select[10];
    reg [21:0] volt_sum;
    reg [8:0]  volt_cnt;
-   reg [13:0] volt;
    reg        transmitVolt;
 
-   wire [13:0] VOLTAGE_FULL   = bat_is_LI ? 14'd1662 : 14'd1810; //  4.4V LI : 4.8v AA
-   wire [13:0] VOLTAGE_CRIT   = bat_is_LI ? 14'd1404 : 14'd1071; //  3.7v LI : 2.8v AA
-   wire [13:0] VOLTAGE_RED    = bat_is_LI ? 14'd1441 : 14'd1145; //  3.8V LI : 3.0v AA
-   wire [13:0] VOLTAGE_YELLOW = bat_is_LI ? 14'd1589 : 14'd1441; //  4.2v LI : 3.8v AA
+   wire [13:0] VOLTAGE_FULL   = bat_is_LI ? 14'd1423 : 14'd1367; //  3.75V LI : 3.6V AA
+   wire [13:0] VOLTAGE_CRIT   = bat_is_LI ? 14'd1145 : 14'd997;  //  3.0V  LI : 2.6V AA
+   wire [13:0] VOLTAGE_RED    = bat_is_LI ? 14'd1182 : 14'd1071; //  3.1V  LI : 2.8V AA
+   wire [13:0] VOLTAGE_YELLOW = bat_is_LI ? 14'd1293 : 14'd1200; //  3.4V  LI : 3.15V AA
 
    reg dischargeFirst;
    reg blink;
@@ -270,7 +297,7 @@ module system_monitor(
             if (startup_done) begin // average values for determined type only
                volt_sum <= volt_sum + hAdcValue_r1;
                volt_cnt <= volt_cnt + 1;
-            end else if (startup_cnt[9] && hAdcValue_r1 >= 850) begin // measure if AA or lithium is used, negative -> LI, positive -> AA
+            end else if (startup_cnt[9] && hAdcValue_r1 >= 700) begin // measure if AA or lithium is used, negative -> LI, positive -> AA
                if (ADC_SEL) begin
                   startup_select <= startup_select - 1'd1;
                end else begin
@@ -287,9 +314,7 @@ module system_monitor(
             volt_sum    <= 22'd0;
             volt_cnt    <=  9'd0;
             volt        <= volt_sum[21:8];
-            if (volt_sum[21:8] >= 14'd850) begin
-               transmitVolt <= 1'b1;
-            end
+            transmitVolt <= 1'b1;
          end
          
          if (gSecondEna) blink <= ~blink;
@@ -300,13 +325,13 @@ module system_monitor(
          LED_Yellow  <= 1'd0;
          wasGreen    <= 1'd0;
          
-         if (volt >= 850) begin // ~2.2V
+         if (volt >= 700) begin // ~1.8V
          
             if (pmic_sys_status[2]) begin // charging
             
                dischargeFirst <= 1'd1;
             
-               if(volt < VOLTAGE_FULL) begin // 4.8v AA / 4.4V LI
+               if(volt < VOLTAGE_FULL) begin
                   if (blink) LED_Green <= 1'd1;
                end else begin
                   LED_Green <= 1'd1;
@@ -316,13 +341,13 @@ module system_monitor(
             
                dischargeFirst <= 1'd0;
          
-               if(volt < VOLTAGE_CRIT) begin // 2.8v AA / 3.7v LI
+               if(volt < VOLTAGE_CRIT) begin
                   low_battery <= 1'd1;
                   if (blink) LED_Red <= 1'd1;
-               end else if(volt < VOLTAGE_RED) begin // 3.0v AA / 3.8V LI
+               end else if(volt < VOLTAGE_RED) begin
                   low_battery <= 1'd1;
                   LED_Red <= 1'd1;
-               end else if(volt < VOLTAGE_YELLOW) begin // 3.8v AA / 4.2v LI
+               end else if(volt < VOLTAGE_YELLOW) begin
                   if (secondCount < 5) LED_Yellow <= 1'd1;
                   if (wasGreen) dischargeFirst <= 1'd1;
                end else begin
@@ -362,21 +387,24 @@ module system_monitor(
     reg [13:0] version = {
         1'd0,  // 1 bit reserved   
         1'd0,  // 1 bit debug,
-        6'd0,  // 6 bits minor version
+        6'd4,  // 6 bits minor version
         6'd18  // 6 bits major version
     };
     
-    localparam  NUM_CH = 7;
+    localparam  NUM_CH = 9;
     wire [$clog2(NUM_CH)-1:0] tx_channel;
     
-    wire [NUM_CH-1:0] channelsNewDataValid = {
-        ~menuDisabled | request_version,            // version info
-        ~menuDisabled,                              // pmic sys status
-        ~menuDisabled,                              // System Control
-        ~menuDisabled | updateBrightness,           // Audio + Brightness
-        ~menuDisabled | request_buttons,            // Buttons
-        (~menuDisabled & transmitVolt & bat_is_LI), // Lithium
-        (~menuDisabled & transmitVolt & ~bat_is_LI) // AA
+    wire [NUM_CH-1:0] channelsNewDataValid = 
+    {
+        ~menuDisabled | request_SystemStatusExtended, // System Status Extended
+        ~menuDisabled,                                // reserved
+        ~menuDisabled | request_version,              // version info
+        ~menuDisabled,                                // pmic sys status
+        ~menuDisabled,                                // System Control
+        ~menuDisabled | updateBrightness,             // Audio + Brightness
+        ~menuDisabled | request_buttons,              // Buttons
+        (~menuDisabled & transmitVolt & bat_is_LI),   // Lithium
+        (~menuDisabled & transmitVolt & ~bat_is_LI)   // AA
     };
     
     wire [13:0] audio_brightness = {2'd0, brightness, hHeadphones, hVolume};
@@ -389,6 +417,8 @@ module system_monitor(
                               (tx_channel == 4) ? 8'd2 : // System Control 
                               (tx_channel == 5) ? 8'd2 : // pmic sys status 
                               (tx_channel == 6) ? 8'd2 : // version info
+                              (tx_channel == 7) ? 8'd4 : // reserved
+                              (tx_channel == 8) ? 8'd4 : // System Status Extended
                               8'd1;
     
     wire [7:0] tx_bytepos;
@@ -413,6 +443,17 @@ module system_monitor(
                              
                              (tx_channel == 6 && tx_bytepos == 0) ? {2'd0, version[13:8]} : // version info
                              (tx_channel == 6 && tx_bytepos == 1) ? version[7:0] : 
+                             
+                             (tx_channel == 7 && tx_bytepos == 0) ? 8'd0 : // reserved
+                             (tx_channel == 7 && tx_bytepos == 1) ? 8'd0 : 
+                             (tx_channel == 7 && tx_bytepos == 2) ? 8'd0 : 
+                             (tx_channel == 7 && tx_bytepos == 3) ? 8'd0 : 
+                             
+                             (tx_channel == 8 && tx_bytepos == 0) ? {7'd0, lowpowerBacklight} : // System Status Extended
+                             (tx_channel == 8 && tx_bytepos == 1) ? 8'd0 : 
+                             (tx_channel == 8 && tx_bytepos == 2) ? 8'd0 : 
+                             (tx_channel == 8 && tx_bytepos == 3) ? 8'd0 : 
+                             
                              8'd0;
    
     

@@ -438,7 +438,8 @@ module usbuvcuart_top(
     localparam  SET_LINE_CODING = 8'h20;
     localparam  GET_LINE_CODING = 8'h21;
     localparam  SET_CONTROL_LINE_STATE = 8'h22;
-    localparam  ENDPT_UART_CONFIG =4'h0;
+    localparam  ENDPT_UART_CONFIG = 4'h0;
+    localparam  ENDPT_UART_DATA = 16'h3;
     
     reg [15:0]  s_ctl_sig;
     reg [15:0]  s_interface_num;
@@ -574,7 +575,7 @@ module usbuvcuart_top(
                                 if (bRequest == GET_LINE_CODING) 
                                     begin
                                         s_set_len[7:0] <= usb_rxdat;
-                                        if (s_interface_num == 16'd2) 
+                                        if (s_interface_num == ENDPT_UART_DATA)
                                         begin
                                             endpt0_send <= 1'd1;
                                         end
@@ -582,13 +583,14 @@ module usbuvcuart_top(
                                     else 
                                         if (bRequest == SET_CONTROL_LINE_STATE) 
                                         begin
-                                            if (s_interface_num == 16'd2) 
+                                            if (s_interface_num == ENDPT_UART_DATA)
                                             begin
                                                 s_uart1_en <= s_ctl_sig[0];
                                             end
                                         end
                         
-                            if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)) 
+                            if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)
+                               ||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
                             begin
                                 if (wIndex[7:0] == 8'h01) 
                                 begin //Video Steam Interface
@@ -611,7 +613,7 @@ module usbuvcuart_top(
                                 if (bRequest == GET_LINE_CODING) 
                                 begin
                                     s_set_len[15:8] <= usb_rxdat;
-                                    if (s_interface_num == 16'd2) 
+                                    if (s_interface_num == ENDPT_UART_DATA)
                                     begin
                                         endpt0_send <= 1'd1;
                                         endpt0_dat <= s_dte1_rate[7:0];
@@ -634,7 +636,7 @@ module usbuvcuart_top(
                         if (usb_rxval) 
                         begin
                             sub_stage <= sub_stage + 8'd1;
-                            if(s_interface_num==2)
+                            if(s_interface_num == ENDPT_UART_DATA)
                             begin
                                 if (sub_stage <= 3) 
                                     s_dte1_rate <= {usb_rxdat,s_dte1_rate[31:8]};
@@ -647,7 +649,7 @@ module usbuvcuart_top(
                                         else 
                                             if (sub_stage == 6) 
                                                 s_data1_bits <= usb_rxdat;
-                            end // end if(s_interface_num==0)
+                            end // end if(s_interface_num == ENDPT_UART_DATA)
                         end // end if(usb_rxval)
                     end // end if(usb_rxact)&&(endpt_sel_ ==ENDPT_UART_CONFIG)
                 end // end if(bRequest == SET_LINE_CODING)
@@ -669,7 +671,7 @@ module usbuvcuart_top(
 
                                     if (usb_txpop) 
                                     begin// new controller version
-                                        if(s_interface_num==2)
+                                        if(s_interface_num == ENDPT_UART_DATA)
                                         begin
                                             if (sub_stage <= 0) 
                                                 endpt0_dat <= s_dte1_rate[15:8];
@@ -690,7 +692,7 @@ module usbuvcuart_top(
                                                                     endpt0_dat <= s_data1_bits;
                                                                 else 
                                                                     endpt0_send <= 1'b0;
-                                        end // end if(s_interface_num==0)
+                                        end // end if(s_interface_num == ENDPT_UART_DATA)
                                     end // end if(usb_txpop)
                                 end //  end if(bRequest == GET_LINE_CODING)
                             end // end if(endpt0_send == 1'b1)
@@ -790,7 +792,8 @@ module usbuvcuart_top(
                         end // if (wIndex[7:0] == 8'h01) 
                     end // if(bRequest == `SET_CUR) 
                     else 
-                        if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)) 
+                        if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)
+                            ||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
                         begin
                             stage <= 8'd0;
                             if (wIndex[7:0] == 8'h01) 
@@ -891,7 +894,8 @@ module usbuvcuart_top(
                                     end
                                 end //if (wValue[15:8] == `VS_PROBE_CONTROL)                                
                             end //if (wIndex[7:0] == 8'h01) 
-                        end // if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF)) 
+                        end // if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF))
+                            //||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
                         else 
                         begin
                             stage <= 8'd0;

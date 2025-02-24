@@ -247,23 +247,25 @@ module top #(parameter ISSIMU=0)
     reg LCD_EN;
     wire qMenuInit;
     wire LCD_BACKLIGHT_INIT;
-    always@(posedge gClk or posedge memrst)
-        if(memrst)
-        begin
+    always@(posedge gClk or posedge memrst) begin
+        if(memrst) begin
             LCD_EN <= 1'd0;
             LCD_EN0 <= 1'd0;
             LCD_EN1 <= 1'd0;
-        end
-        else
-            if(LCD_VSYNC&~LCD_VSYNC_r1)
-            begin
+        end else begin
+            if(LCD_VSYNC&~LCD_VSYNC_r1) begin
                 LCD_EN0 <= LCD_INIT_DONE & LCD_BACKLIGHT_INIT;
                 LCD_EN1 <= LCD_EN0;
                 LCD_EN  <= LCD_EN1;
             end
+            // synthesis translate_off
+            LCD_EN  <= 1'd1;
+            // synthesis translate_on
+        end
+    end
     
     wire [31:0] debug_system;
-    wire [13:0] system_control;
+    wire [15:0] system_control;
     wire [17:0] LCD_DB_UVC;
     wire menuDisabled;
     wire slideOutActive;
@@ -297,6 +299,7 @@ module top #(parameter ISSIMU=0)
         .colorCorrectionEnableLCD(system_control[2]),
         .colorCorrectionEnableUVC(system_control[3]),
         .voltageLow(low_battery),
+        .lowBattDispMode(system_control[14:13]),
         .showTimer(1'b0), //system_control[8]),
         .runTimer(system_control[9]),
         .resetTimer(system_control[10]),
@@ -408,6 +411,9 @@ module top #(parameter ISSIMU=0)
         .pclk(pClk),
         .reset_n(~memrst),//lock_o),
         
+        .paletteOff(system_control[12]),
+        
+        .BTN_NODIAGONAL(system_control[11]),
         .BTN_A(BTN_A),
         .BTN_B(BTN_B),
         .BTN_DPAD_DOWN(BTN_DPAD_DOWN),
@@ -438,7 +444,6 @@ module top #(parameter ISSIMU=0)
         .lcd_on_int(lcd_on_int),
         .lcd_off_overwrite(lcd_off_overwrite),
 
-        
         .boot_rom_enabled(boot_rom_enabled),
         
         // audio

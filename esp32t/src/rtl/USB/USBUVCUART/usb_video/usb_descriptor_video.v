@@ -459,7 +459,7 @@ module usb_desc #(
         descrom[DESC_CDCIF_ADDR + CDC_NOTIFY_EP_BASE + 3] <= 8'h03;// bmAttributes = 3
         descrom[DESC_CDCIF_ADDR + CDC_NOTIFY_EP_BASE + 4] <= 8'h08;// wMaxPacketSize = 8, lsb
         descrom[DESC_CDCIF_ADDR + CDC_NOTIFY_EP_BASE + 5] <= 8'h00;// wMaxPacketSize = 0, msb
-        descrom[DESC_CDCIF_ADDR + CDC_NOTIFY_EP_BASE + 6] <= 8'h01;// bInterval = 1 ms
+        descrom[DESC_CDCIF_ADDR + CDC_NOTIFY_EP_BASE + 6] <= 8'h07;// bInterval = 8 ms
 
         //----------------- CDC Class Data Interface Descriptor -----------------
         descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 0] <= 8'h09;// bLength = 9 bytes
