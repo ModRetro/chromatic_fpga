@@ -26,17 +26,17 @@ SOFTWARE.
 `include "uvc_defs.v"
 module usb_desc #(
         // Vendor ID to report in device descriptor.
-        parameter VENDORID = 16'h0403,//fb9a;//16'hfb9a;//16'h08bb;
+        parameter VENDORID = 16'h0403,
         // Product ID to report in device descriptor.
-        parameter PRODUCTID = 16'h6010,//fb9a;//16'hfb9a;//16'h27c6;
+        parameter PRODUCTID = 16'h6010,
         // Product version to report in device descriptor.
-        parameter VERSIONBCD = 16'h0100,//16'h0100;
+        parameter VERSIONBCD = 16'h0100,
         // Optional description of manufacturer (max 126 characters).
         parameter VENDORSTR = "ModRetro",
-        parameter VENDORSTR_LEN = 8,//66;
+        parameter VENDORSTR_LEN = 8,
         // Optional description of product (max 126 characters).
         parameter PRODUCTSTR = "Chromatic - Player XX",
-        parameter PRODUCTSTR_LEN = 21,//34;
+        parameter PRODUCTSTR_LEN = 21,
         // Optional product serial number (max 126 characters).
         parameter SERIALSTR = "012345678",
         parameter SERIALSTR_LEN = 9,
@@ -89,7 +89,7 @@ module usb_desc #(
     localparam  DESC_QUAL_ADDR        = 20;
     localparam  DESC_QUAL_LEN         = 10;
     localparam  DESC_FSCFG_ADDR       = 32;
-    localparam  DESC_CDCIF_ADDR       = DESC_FSCFG_ADDR + 167 + 6 + 1;
+    localparam  DESC_CDCIF_ADDR       = DESC_FSCFG_ADDR + 173 + 6 + 1;
 
     localparam CDC_IAD_BASE = 0; // Relative to DESC_CDCIF_ADDR
     localparam CDC_IAD_LEN  = 8;
@@ -122,10 +122,8 @@ module usb_desc #(
     localparam CDC_DATA_OUT_EP_LEN = 7;
 
     localparam  DESC_CDCIF_LEN        = CDC_IAD_LEN + CDC_CTRL_IF_LEN + CDC_HEADER_LEN + CDC_UNION_LEN + CDC_CALL_MGMT_LEN + CDC_ACM_LEN + CDC_NOTIFY_EP_LEN + CDC_CLASS_DATA_LEN + CDC_DATA_IN_EP_LEN + CDC_DATA_OUT_EP_LEN;
-//    localparam  DESC_MSOS_ADDR       = DESC_CDCIF_ADDR + DESC_CDCIF_LEN;
-//    localparam  DESC_MSOS_LEN        = 78;
     localparam DESC_MSOS_LEN = 0;
-    localparam  DESC_FSCFG_LEN        = 174 + DESC_CDCIF_LEN + DESC_MSOS_LEN;
+    localparam  DESC_FSCFG_LEN        = 180 + DESC_CDCIF_LEN + DESC_MSOS_LEN;
     localparam  DESC_HSCFG_ADDR       = DESC_FSCFG_ADDR;
     localparam  DESC_HSCFG_LEN        = DESC_FSCFG_LEN;
     localparam  DESC_OSCFG_ADDR       = DESC_HSCFG_ADDR + DESC_HSCFG_LEN;
@@ -163,6 +161,7 @@ module usb_desc #(
     // || full-speed plus high-speed plus string descriptors.
     localparam descrom_have_strings = (VENDORSTR_LEN > 0 || PRODUCTSTR_LEN > 0 || SERIALSTR_LEN > 0);
     localparam descrom_len = (HSSUPPORT || descrom_have_strings)?((descrom_have_strings)? DESC_END_ADDR : DESC_OSCFG_ADDR + DESC_OSCFG_LEN) : DESC_FSCFG_ADDR + DESC_FSCFG_LEN;
+    localparam descrom_addr_highest = $clog2(descrom_len) - 1;
     assign o_descrom_have_strings = descrom_have_strings;
     reg [7:0] descrom [0 : descrom_len-1];
     integer i;
@@ -247,14 +246,14 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 26 + 4] <= 8'h01;// 4 bcdUVC - Video class revision 1.1
         descrom[DESC_FSCFG_ADDR + 26 + 5] <= 8'h28;// 5 wTotalLength
         descrom[DESC_FSCFG_ADDR + 26 + 6] <= 8'h00;// 6 wTotalLength - till output terminal
-        descrom[DESC_FSCFG_ADDR + 26 + 7] <=  8'h00;//60MHz 8'h00;// 7  dwClockFrequency - 100MHz
-        descrom[DESC_FSCFG_ADDR + 26 + 8] <=  8'h87;//60MHz 8'hE1;// 8  dwClockFrequency - 100MHz
-        descrom[DESC_FSCFG_ADDR + 26 + 9] <=  8'h93;//60MHz 8'hF5;// 9  dwClockFrequency - 100MHz
-        descrom[DESC_FSCFG_ADDR + 26 + 10] <= 8'h03;//60MHz 8'h05;// 10 dwClockFrequency - 100MHz
+        descrom[DESC_FSCFG_ADDR + 26 + 7] <=  {`DEVICE_CLOCK_FREQUENCY}[7:0];// 7-10  dwClockFrequency
+        descrom[DESC_FSCFG_ADDR + 26 + 8] <=  {`DEVICE_CLOCK_FREQUENCY}[15:8];// 7-10  dwClockFrequency
+        descrom[DESC_FSCFG_ADDR + 26 + 9] <=  {`DEVICE_CLOCK_FREQUENCY}[23:16];// 7-10  dwClockFrequency
+        descrom[DESC_FSCFG_ADDR + 26 + 10] <= {`DEVICE_CLOCK_FREQUENCY}[31:24];// 7-10  dwClockFrequency
         descrom[DESC_FSCFG_ADDR + 26 + 11] <= 8'h01;// 11 bInCollection - One Streaming Interface
         descrom[DESC_FSCFG_ADDR + 26 + 12] <= 8'h01;// 12 baInterfaceNr - Number of the Streaming interface
         //---------------- Input Terminal (Camera) Descriptor - Represents the CCD sensor----------------
-        //---------------- (Simulated here in this demo)----------------
+        //---------------- (Simulated here)----------------
         descrom[DESC_FSCFG_ADDR + 39 + 0] <= 8'h12;// 0 bLength
         descrom[DESC_FSCFG_ADDR + 39 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType = Audio Interface Descriptor
         descrom[DESC_FSCFG_ADDR + 39 + 2] <= `USB_VC_INPUT_TERMINAL;// 2 bDescriptorSubtype = 2 Input Terminal
@@ -313,7 +312,7 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 87 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType - Class-specific Interface
         descrom[DESC_FSCFG_ADDR + 87 + 2] <= `USB_VS_INPUT_HEADER;// 2 bDescriptorSubtype - INPUT HEADER
         descrom[DESC_FSCFG_ADDR + 87 + 3] <= 8'h01;// 3 bNumFormats - One format supported
-        descrom[DESC_FSCFG_ADDR + 87 + 4] <= 8'h47;// 4 wTotalLength - Size of class-specific VS descriptor
+        descrom[DESC_FSCFG_ADDR + 87 + 4] <= 8'h4d;// 4 wTotalLength - Size of class-specific VS descriptor
         descrom[DESC_FSCFG_ADDR + 87 + 5] <= 8'h00;// 5 wTotalLength - Size of class-specific VS descriptor
         descrom[DESC_FSCFG_ADDR + 87 + 6] <= (`VIDEO_DATA_EP_NUM | 8'h80);// 6 bEndpointAddress - Iso EP for video streaming
         descrom[DESC_FSCFG_ADDR + 87 + 7] <= 8'h00;// 7 bmInfo - No dynamic format change
@@ -330,22 +329,22 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 101 + 3] <= 8'h01;// 3 bFormatIndex
         descrom[DESC_FSCFG_ADDR + 101 + 4] <= 8'h01;// 4 bNumFrameDescriptors - 1 Frame descriptor followed
 
-        descrom[DESC_FSCFG_ADDR + 101 + 5 ] <= 8'h7D;// 5  guidFormat - RGB888 Video format MF
-        descrom[DESC_FSCFG_ADDR + 101 + 6 ] <= 8'hEB;// 6  guidFormat - RGB888 Video format MF
-        descrom[DESC_FSCFG_ADDR + 101 + 7 ] <= 8'h36;// 7  guidFormat - RGB888 Video format MF
-        descrom[DESC_FSCFG_ADDR + 101 + 8 ] <= 8'hE4;// 8  guidFormat - RGB888 Video format MF
-        descrom[DESC_FSCFG_ADDR + 101 + 9 ] <= 8'h4F;// 9  guidFormat - RGB888 Video format MF
-        descrom[DESC_FSCFG_ADDR + 101 + 10] <= 8'h52;// 10 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 11] <= 8'hce;// 11 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 12] <= 8'h11;// 12 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 13] <= 8'h9f;// 13 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 14] <= 8'h53;// 14 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 15] <= 8'h00;// 15 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 16] <= 8'h20;// 16 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 17] <= 8'haf;// 17 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 18] <= 8'h0b;// 18 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 19] <= 8'ha7;// 19 guidFormat - RGB888 Video format
-        descrom[DESC_FSCFG_ADDR + 101 + 20] <= 8'h70;// 20 guidFormat - RGB888 Video format
+        descrom[DESC_FSCFG_ADDR + 101 + 5 ] <= 8'h59;// 5-20  guidFormat - YUY2 Video format
+        descrom[DESC_FSCFG_ADDR + 101 + 6 ] <= 8'h55;// 6
+        descrom[DESC_FSCFG_ADDR + 101 + 7 ] <= 8'h59;// 7
+        descrom[DESC_FSCFG_ADDR + 101 + 8 ] <= 8'h32;// 8
+        descrom[DESC_FSCFG_ADDR + 101 + 9 ] <= 8'h00;// 9
+        descrom[DESC_FSCFG_ADDR + 101 + 10] <= 8'h00;// 10
+        descrom[DESC_FSCFG_ADDR + 101 + 11] <= 8'h10;// 11
+        descrom[DESC_FSCFG_ADDR + 101 + 12] <= 8'h00;// 12
+        descrom[DESC_FSCFG_ADDR + 101 + 13] <= 8'h80;// 13
+        descrom[DESC_FSCFG_ADDR + 101 + 14] <= 8'h00;// 14
+        descrom[DESC_FSCFG_ADDR + 101 + 15] <= 8'h00;// 15
+        descrom[DESC_FSCFG_ADDR + 101 + 16] <= 8'haa;// 16
+        descrom[DESC_FSCFG_ADDR + 101 + 17] <= 8'h00;// 17
+        descrom[DESC_FSCFG_ADDR + 101 + 18] <= 8'h38;// 18
+        descrom[DESC_FSCFG_ADDR + 101 + 19] <= 8'h9b;// 19
+        descrom[DESC_FSCFG_ADDR + 101 + 20] <= 8'h71;// 20
 
         descrom[DESC_FSCFG_ADDR + 101 + 21] <= `BITS_PER_PIXEL;// 21 bBitsPerPixel - 16 bits
         descrom[DESC_FSCFG_ADDR + 101 + 22] <= 8'h01;// 22 bDefaultFrameIndex
@@ -384,26 +383,33 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 128 + 27] <= {`FRAME_INTERVAL}[15:8];// 27 dwFrameInterval
         descrom[DESC_FSCFG_ADDR + 128 + 28] <= {`FRAME_INTERVAL}[23:16];// 28 dwFrameInterval
         descrom[DESC_FSCFG_ADDR + 128 + 29] <= {`FRAME_INTERVAL}[31:24];// 29 dwFrameInterval
+        //Color Matching Descriptor
+        descrom[DESC_FSCFG_ADDR + 158 + 0] <= 8'd6;// 0 bLength
+        descrom[DESC_FSCFG_ADDR + 158 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_FSCFG_ADDR + 158 + 2] <= 8'd13;// 2 bDescriptorSubtype
+        descrom[DESC_FSCFG_ADDR + 158 + 3] <= 8'd1;// 3 bColorPrimaries
+        descrom[DESC_FSCFG_ADDR + 158 + 4] <= 8'd1;// 4 bTransferCharacteristics
+        descrom[DESC_FSCFG_ADDR + 158 + 5] <= 8'd4;// 5 bMatrixCoefficients
         //Video Streaming Interface Descriptor
         //Alternate Setting 1
-        descrom[DESC_FSCFG_ADDR + 158 + 0] <= 8'h09;// 0 bLength
-        descrom[DESC_FSCFG_ADDR + 158 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType - Interface
-        descrom[DESC_FSCFG_ADDR + 158 + 2] <= 8'h01;// 2 bInterfaceNumber - Interface 1
-        descrom[DESC_FSCFG_ADDR + 158 + 3] <= 8'h01;// 3 bAlternateSetting - 1
-        descrom[DESC_FSCFG_ADDR + 158 + 4] <= 8'h01;// 4 bNumEndpoints
-        descrom[DESC_FSCFG_ADDR + 158 + 5] <= `USB_CLASS_VIDEO;// 5 bInterfaceClass - Video Class
-        descrom[DESC_FSCFG_ADDR + 158 + 6] <= `USB_VIDEO_STREAMING;// 6 bInterfaceSubClass - VideoStreaming Interface
-        descrom[DESC_FSCFG_ADDR + 158 + 7] <= 8'h00;// 7 bInterfaceProtocol - No protocol
-        descrom[DESC_FSCFG_ADDR + 158 + 8] <= 8'h00;// 8 iInterface - Unused
+        descrom[DESC_FSCFG_ADDR + 164 + 0] <= 8'h09;// 0 bLength
+        descrom[DESC_FSCFG_ADDR + 164 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType - Interface
+        descrom[DESC_FSCFG_ADDR + 164 + 2] <= 8'h01;// 2 bInterfaceNumber - Interface 1
+        descrom[DESC_FSCFG_ADDR + 164 + 3] <= 8'h01;// 3 bAlternateSetting - 1
+        descrom[DESC_FSCFG_ADDR + 164 + 4] <= 8'h01;// 4 bNumEndpoints
+        descrom[DESC_FSCFG_ADDR + 164 + 5] <= `USB_CLASS_VIDEO;// 5 bInterfaceClass - Video Class
+        descrom[DESC_FSCFG_ADDR + 164 + 6] <= `USB_VIDEO_STREAMING;// 6 bInterfaceSubClass - VideoStreaming Interface
+        descrom[DESC_FSCFG_ADDR + 164 + 7] <= 8'h00;// 7 bInterfaceProtocol - No protocol
+        descrom[DESC_FSCFG_ADDR + 164 + 8] <= 8'h00;// 8 iInterface - Unused
 
         //Standard VS Isochronous Video Data Endpoint Descriptor
-        descrom[DESC_FSCFG_ADDR + 167 + 0] <= 8'h07;// 0 bLength
-        descrom[DESC_FSCFG_ADDR + 167 + 1] <= `USB_DESCTYPE_ENDPOINT;// 1 bDescriptorType
-        descrom[DESC_FSCFG_ADDR + 167 + 2] <= (`VIDEO_DATA_EP_NUM | 8'h80);// 2 bEndpointAddress - IN Endpoint
-        descrom[DESC_FSCFG_ADDR + 167 + 3] <= 8'h05;// 3 bmAttributes - Isochronous EP (Asynchronous)
-        descrom[DESC_FSCFG_ADDR + 167 + 4] <= {`PACKET_SIZE}[7:0];// 4 wMaxPacketSize 1x 1023 bytes
-        descrom[DESC_FSCFG_ADDR + 167 + 5] <= {3'd0,{`ADDITIONAL_PACKET}[1:0],{`PACKET_SIZE}[10:8]};// 5 wMaxPacketSize 1x 1023 bytes
-        descrom[DESC_FSCFG_ADDR + 167 + 6] <= 8'h01;// 6 bInterval
+        descrom[DESC_FSCFG_ADDR + 173 + 0] <= 8'h07;// 0 bLength
+        descrom[DESC_FSCFG_ADDR + 173 + 1] <= `USB_DESCTYPE_ENDPOINT;// 1 bDescriptorType
+        descrom[DESC_FSCFG_ADDR + 173 + 2] <= (`VIDEO_DATA_EP_NUM | 8'h80);// 2 bEndpointAddress - IN Endpoint
+        descrom[DESC_FSCFG_ADDR + 173 + 3] <= 8'h05;// 3 bmAttributes - Isochronous EP (Asynchronous)
+        descrom[DESC_FSCFG_ADDR + 173 + 4] <= {`PACKET_SIZE}[7:0];// 4 wMaxPacketSize 1x 1023 bytes
+        descrom[DESC_FSCFG_ADDR + 173 + 5] <= {3'd0,{`ADDITIONAL_PACKET}[1:0],{`PACKET_SIZE}[10:8]};// 5 wMaxPacketSize
+        descrom[DESC_FSCFG_ADDR + 173 + 6] <= 8'h01;// 6 bInterval
 
 
         /*CDC Interface*/
@@ -543,15 +549,15 @@ module usb_desc #(
         begin
             descrom[10] <= playerNum;
             if(playerNum[7:4] > 9)
-                descrom[DESC_STRPRODUCT_ADDR + 19*2 + 2] <= 8'h37 + playerNum[7:4];
+                descrom[DESC_STRPRODUCT_ADDR + 19*2 + 2] <= 8'h37 + {4'd0, playerNum[7:4]};
             else
-                descrom[DESC_STRPRODUCT_ADDR + 19*2 + 2] <= 8'h30 + playerNum[7:4];
+                descrom[DESC_STRPRODUCT_ADDR + 19*2 + 2] <= 8'h30 + {4'd0, playerNum[7:4]};
 
             if(playerNum[3:0] > 9)
-                descrom[DESC_STRPRODUCT_ADDR + 20*2 + 2] <= 8'h37 + playerNum[3:0];
+                descrom[DESC_STRPRODUCT_ADDR + 20*2 + 2] <= 8'h37 + {4'd0, playerNum[3:0]};
             else
-                descrom[DESC_STRPRODUCT_ADDR + 20*2 + 2] <= 8'h30 + playerNum[3:0];
+                descrom[DESC_STRPRODUCT_ADDR + 20*2 + 2] <= 8'h30 + {4'd0, playerNum[3:0]};
         end
       end
-    assign o_descrom_rdat = descrom[i_descrom_raddr];
+    assign o_descrom_rdat = descrom[i_descrom_raddr[descrom_addr_highest:0]];
 endmodule

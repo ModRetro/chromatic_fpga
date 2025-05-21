@@ -22,6 +22,7 @@ module system_monitor(
     input               hAdcReady_r1,
     input   [13:0]      hAdcValue_r1,
     input   [8:0]       hButtons,
+    output  reg [8:0]   MCU_buttons,
     input   [6:0]       hVolume,
     input   [7:0]       pmic_sys_status,
     input               hHeadphones,
@@ -31,6 +32,7 @@ module system_monitor(
     output  reg         LED_Green,
     output  reg         LED_Red,
     output  reg         LED_Yellow,
+    output  reg         LED_White,
     output  reg [15:0]  system_control,
     output  reg [31:0]  debug_system,
     input   [7:0]       uart_rx_data,
@@ -90,10 +92,10 @@ module system_monitor(
     
     always@(posedge clk or posedge reset)
     begin
-        if(reset)
+        if(reset) begin
             system_control <= 16'd1;
-        else
-        begin
+            MCU_buttons    <= 9'd0;  
+        end else begin
             request_buttons              <= 1'b0;
             request_version              <= 1'b0;
             updateBrightness             <= 1'b0;
@@ -105,6 +107,9 @@ module system_monitor(
             
             if(rx_data_val)
             begin
+                if(rx_address == 7'd9) begin
+                    MCU_buttons <= rx_data[8:0];
+                end
                 if(rx_address == 7'd6) begin
                     request_version <= 1'b1;
                 end
@@ -259,12 +264,8 @@ module system_monitor(
    wire [13:0] VOLTAGE_FULL   = bat_is_LI ? 14'd1423 : 14'd1367; //  3.75V LI : 3.6V AA
    wire [13:0] VOLTAGE_CRIT   = bat_is_LI ? 14'd1145 : 14'd997;  //  3.0V  LI : 2.6V AA
    wire [13:0] VOLTAGE_RED    = bat_is_LI ? 14'd1182 : 14'd1071; //  3.1V  LI : 2.8V AA
-   wire [13:0] VOLTAGE_YELLOW = bat_is_LI ? 14'd1293 : 14'd1200; //  3.4V  LI : 3.15V AA
 
-   reg dischargeFirst;
    reg blink;
-   reg [2:0] secondCount;
-   reg wasGreen;
     
    always@(posedge clk or posedge reset) begin
 
@@ -273,9 +274,7 @@ module system_monitor(
          LED_Red        <= 1'd0;
          LED_Green      <= 1'd0;
          LED_Yellow     <= 1'd0;
-         dischargeFirst <= 1'd1;
          blink          <= 1'd0;
-         wasGreen       <= 1'd0;
          volt           <= 14'd0;
          volt_sum       <= 22'd0;
          volt_cnt       <=  9'd0;
@@ -323,42 +322,21 @@ module system_monitor(
          LED_Red     <= 1'd0;
          LED_Green   <= 1'd0;
          LED_Yellow  <= 1'd0;
-         wasGreen    <= 1'd0;
+         LED_White   <= 1'd0;
          
          if (volt >= 700) begin // ~1.8V
          
             if (pmic_sys_status[2]) begin // charging
             
-               dischargeFirst <= 1'd1;
-            
-               if(volt < VOLTAGE_FULL) begin
-                  if (blink) LED_Green <= 1'd1;
-               end else begin
-                  LED_Green <= 1'd1;
+               if(bat_is_LI && volt < VOLTAGE_FULL) begin
+                  LED_White   <= 1'd1;
                end
             
             end else begin
-            
-               dischargeFirst <= 1'd0;
          
-               if(volt < VOLTAGE_CRIT) begin
+               if(volt < VOLTAGE_RED) begin
                   low_battery <= 1'd1;
                   if (blink) LED_Red <= 1'd1;
-               end else if(volt < VOLTAGE_RED) begin
-                  low_battery <= 1'd1;
-                  LED_Red <= 1'd1;
-               end else if(volt < VOLTAGE_YELLOW) begin
-                  if (secondCount < 5) LED_Yellow <= 1'd1;
-                  if (wasGreen) dischargeFirst <= 1'd1;
-               end else begin
-                  if (secondCount < 5) LED_Green <= 1'd1;
-                  wasGreen <= 1'd1;
-               end
-               
-               if (dischargeFirst) begin 
-                  secondCount <= 3'd0;
-               end else if (gSecondEna && secondCount < 7) begin
-                  secondCount <= secondCount + 1'd1;
                end
                
             end 
@@ -387,7 +365,7 @@ module system_monitor(
     reg [13:0] version = {
         1'd0,  // 1 bit reserved   
         1'd0,  // 1 bit debug,
-        6'd4,  // 6 bits minor version
+        6'd5,  // 6 bits minor version
         6'd18  // 6 bits major version
     };
     

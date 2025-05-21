@@ -14,6 +14,7 @@
         <File path="src/rtl/BSP/ST7785_panel_master.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/adc_wrap.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/aud_system_top.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/button_debounce.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/gb_burst_write.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/i2c_master.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/mem_system_top.sv" type="file.verilog" enable="1"/>
@@ -29,7 +30,7 @@
         <File path="src/rtl/BSP/uart/uart.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/uart_packet_wrapper_rx.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/uart_packet_wrapper_tx.sv" type="file.verilog" enable="1"/>
-        <File path="src/rtl/BSP/vid_system_top.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/BSP/vid_system_top.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/BSP/vid_tpg.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/EMU/CORE/cheatcodes.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/EMU/CORE/dpramV.v" type="file.verilog" enable="1"/>
@@ -44,6 +45,8 @@
         <File path="src/rtl/EMU/emu_system_top.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/EMU/iir_filter.sv" type="file.verilog" enable="1"/>
         <File path="src/rtl/USB/USBUVCUART/Gowin_PLL_UVC/Gowin_PLL_UVC.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/color_space_convertor/color_space_convertor.v" type="file.verilog" enable="1"/>
+        <File path="src/rtl/USB/USBUVCUART/fifo_video/fifo_video.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/USB/USBUVCUART/sync_fifo/sync_rx_pkt_fifo.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/USB/USBUVCUART/sync_fifo/sync_tx_pkt_fifo.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/USB/USBUVCUART/sync_fifo/usb_fifo.v" type="file.verilog" enable="1"/>
@@ -58,7 +61,6 @@
         <File path="src/rtl/USB/USBUVCUART/usb_video/uvc_defs.v" type="file.verilog" enable="1"/>
         <File path="src/rtl/USB/USBUVCUART/usbuvcuart_top.v" type="file.verilog" enable="1"/>
         <File path="src/top.v" type="file.verilog" enable="1"/>
-        <File path="src/Gameboy_MiSTer/rtl/T80/T80.vhd" type="file.vhdl" enable="1"/>
         <File path="src/Gameboy_MiSTer/rtl/T80/T80_ALU.vhd" type="file.vhdl" enable="1"/>
         <File path="src/Gameboy_MiSTer/rtl/T80/T80_Pack.vhd" type="file.vhdl" enable="1"/>
         <File path="src/Gameboy_MiSTer/rtl/T80/T80_Reg.vhd" type="file.vhdl" enable="1"/>
@@ -77,12 +79,14 @@
         <File path="src/rtl/BSP/uart/uart_rx.vhd" type="file.vhdl" enable="1"/>
         <File path="src/rtl/BSP/uart/uart_tx.vhd" type="file.vhdl" enable="1"/>
         <File path="src/rtl/EMU/CORE/T80/GBse.vhd" type="file.vhdl" enable="1"/>
+        <File path="src/rtl/EMU/CORE/T80/T80.vhd" type="file.vhdl" enable="1"/>
         <File path="src/rtl/EMU/CORE/T80/T80_MCode.vhd" type="file.vhdl" enable="1"/>
         <File path="src/rtl/EMU/CORE/bus_savestates.vhd" type="file.vhdl" enable="1"/>
         <File path="src/rtl/EMU/CORE/gbc_snd.vhd" type="file.vhdl" enable="1"/>
         <File path="src/rtl/EMU/CORE/speedcontrol.vhd" type="file.vhdl" enable="1"/>
         <File path="src/board/evt1_x2/evt1_x2.cst" type="file.cst" enable="1"/>
         <File path="src/board/evt1_x2/evt1_x2.sdc" type="file.sdc" enable="1"/>
+        <File path="sysMon.rao" type="file.gao" enable="0"/>
         <File path="src/rtl/BSP/tlv320regs.hex" type="file.other" enable="1"/>
     </FileList>
 </Project>

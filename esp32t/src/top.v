@@ -193,11 +193,16 @@ module top #(parameter ISSIMU=0)
     wire LED_Green;
     wire LED_Red;
     wire LED_Yellow;
+    wire LED_White;
     wire [7:0]  pmic_sys_status;
     
     always@(posedge xClk)
     begin
-        if (LED_Green) begin
+        if (LED_White) begin
+            FPGA_LED_R <= 1'd0;
+            FPGA_LED_B <= 1'd0;
+            FPGA_LED_G <= 1'd0;        
+        end else if (LED_Green) begin
             FPGA_LED_R <= 1'd1;
             FPGA_LED_B <= 1'd1;
             FPGA_LED_G <= 1'd0;
@@ -406,23 +411,47 @@ module top #(parameter ISSIMU=0)
     wire lcd_on_int;
     wire lcd_off_overwrite;
     
+    wire [8:0] MCU_buttons;
+    
+    wire BTN_MENU_ored = BTN_MENU & ~MCU_buttons[8]; // BTN_MENU is low active
+    
+    
+    wire BTN_A_filtered;
+    wire BTN_B_filtered;
+    wire BTN_DPAD_DOWN_filtered;
+    wire BTN_DPAD_LEFT_filtered;
+    wire BTN_DPAD_RIGHT_filtered;
+    wire BTN_DPAD_UP_filtered;
+    wire BTN_SEL_filtered;
+    wire BTN_START_filtered;
+    
+    button_debouncer debouncer_A         (gClk, BTN_A         , BTN_A_filtered         );
+    button_debouncer debouncer_B         (gClk, BTN_B         , BTN_B_filtered         );
+    button_debouncer debouncer_DPAD_DOWN (gClk, BTN_DPAD_DOWN , BTN_DPAD_DOWN_filtered );
+    button_debouncer debouncer_DPAD_LEFT (gClk, BTN_DPAD_LEFT , BTN_DPAD_LEFT_filtered );
+    button_debouncer debouncer_DPAD_RIGHT(gClk, BTN_DPAD_RIGHT, BTN_DPAD_RIGHT_filtered);
+    button_debouncer debouncer_DPAD_UP   (gClk, BTN_DPAD_UP   , BTN_DPAD_UP_filtered   );
+    button_debouncer debouncer_SEL       (gClk, BTN_SEL       , BTN_SEL_filtered       );
+    button_debouncer debouncer_START     (gClk, BTN_START     , BTN_START_filtered     );
+    
     emu_system_top u_emu_system_top(
         .hclk(hClk),
         .pclk(pClk),
         .reset_n(~memrst),//lock_o),
+        .POWER_GOOD(~POWER_ON_FPGA),
         
         .paletteOff(system_control[12]),
         
         .BTN_NODIAGONAL(system_control[11]),
-        .BTN_A(BTN_A),
-        .BTN_B(BTN_B),
-        .BTN_DPAD_DOWN(BTN_DPAD_DOWN),
-        .BTN_DPAD_LEFT(BTN_DPAD_LEFT),
-        .BTN_DPAD_RIGHT(BTN_DPAD_RIGHT),
-        .BTN_DPAD_UP(BTN_DPAD_UP),
-        .BTN_MENU(~BTN_MENU),
-        .BTN_SEL(BTN_SEL),
-        .BTN_START(BTN_START),
+        .BTN_A(BTN_A_filtered | MCU_buttons[3]),
+        .BTN_B(BTN_B_filtered | MCU_buttons[2]),
+        .BTN_DPAD_DOWN(BTN_DPAD_DOWN_filtered | MCU_buttons[7]),
+        .BTN_DPAD_LEFT(BTN_DPAD_LEFT_filtered | MCU_buttons[6]),
+        .BTN_DPAD_RIGHT(BTN_DPAD_RIGHT_filtered | MCU_buttons[5]),
+        .BTN_DPAD_UP(BTN_DPAD_UP_filtered | MCU_buttons[4]),
+        .BTN_MENU(~BTN_MENU_ored),
+        .BTN_SEL(BTN_SEL_filtered | MCU_buttons[1]),
+        .BTN_START(BTN_START_filtered | MCU_buttons[0]),
         .MENU_CLOSED(menuDisabled & ~slideOutActive),
         
         .CART_A(CART_A),
@@ -594,20 +623,20 @@ module top #(parameter ISSIMU=0)
     wire [15:0] uart_rx_data;
     wire        uart_rx_val;
 
-    wire menu_gated = qMenuInit&(CART_DET_sr[6:3]==4'b1111) ? BTN_MENU : 1'b1;
+    wire menu_gated = qMenuInit&(CART_DET_sr[6:3]==4'b1111) ? BTN_MENU_ored : 1'b1;
 
     system_monitor u_system_monitor(
         .clk(gClk),
         .reset(~lock_o),
-        .BTN_A(BTN_A),
-        .BTN_B(BTN_B),
-        .BTN_DPAD_DOWN(BTN_DPAD_DOWN),
-        .BTN_DPAD_LEFT(BTN_DPAD_LEFT),
-        .BTN_DPAD_RIGHT(BTN_DPAD_RIGHT),
-        .BTN_DPAD_UP(BTN_DPAD_UP),
+        .BTN_A(BTN_A_filtered),
+        .BTN_B(BTN_B_filtered),
+        .BTN_DPAD_DOWN(BTN_DPAD_DOWN_filtered),
+        .BTN_DPAD_LEFT(BTN_DPAD_LEFT_filtered),
+        .BTN_DPAD_RIGHT(BTN_DPAD_RIGHT_filtered),
+        .BTN_DPAD_UP(BTN_DPAD_UP_filtered),
         .BTN_MENU(menu_gated),
-        .BTN_SEL(BTN_SEL),
-        .BTN_START(BTN_START),
+        .BTN_SEL(BTN_SEL_filtered),
+        .BTN_START(BTN_START_filtered),
         .menuDisabled(menuDisabled),
         .LCD_BACKLIGHT_INIT(LCD_BACKLIGHT_INIT),
         .LCD_INIT_DONE(LCD_INIT_DONE & ~boot_rom_enabled),
@@ -618,6 +647,7 @@ module top #(parameter ISSIMU=0)
         .hAdcReady_r1(hAdcReady_r1),
         .ADC_SEL(ADC_SEL),
         .hButtons(9'd0),
+        .MCU_buttons(MCU_buttons),
         .hVolume(volume[6:0]),
         .pmic_sys_status(pmic_sys_status),
         .hHeadphones(hHeadphones),
@@ -628,6 +658,7 @@ module top #(parameter ISSIMU=0)
         .LED_Green(LED_Green),
         .LED_Red(LED_Red),
         .LED_Yellow(LED_Yellow),
+        .LED_White(LED_White),
         .system_control(system_control),
         .uart_rx_data(uart_rx_data[7:0]),
         .uart_rx_val(uart_rx_val),

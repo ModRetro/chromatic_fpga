@@ -30,6 +30,7 @@ module polling_master#(
     output  reg [7:0]                       pmic_sys_status,
     output  reg [7:0]                       new_fault,
     output  reg [7:0]                       inlim,
+    output  reg [7:0]                       chargeCurrent,
     
     output  reg                             i2c_enable,
     output  reg                             i2c_read_write,
@@ -45,19 +46,21 @@ module polling_master#(
     localparam CODEC = 7'h18;
     localparam PMIC = 7'h6B;
     
-    reg [11:0] state;
-    localparam S_VOLUME = 12'd1;
-    localparam S_HP_GPIO = 12'd2;
-    localparam S_HP_EN0 = 12'd4;
-    localparam S_HP_EN1 = 12'd8;
-    localparam S_HP_SWPWRDOWN = 12'd16;
-    localparam S_HP_EN2 = 12'd32;
-    localparam S_HP_EN3 = 12'd64;
-    localparam S_HP_EN4 = 12'd128;
-    localparam S_SYS_STATUS = 12'd256;
-    localparam S_NEW_FAULT = 12'd512;
-    localparam S_INLIM = 12'd1024;
-    localparam S_IDLE = 12'd2048;
+    reg [15:0] state;
+    localparam S_VOLUME       = 16'h0001;
+    localparam S_HP_GPIO      = 16'h0002;
+    localparam S_HP_EN0       = 16'h0004;
+    localparam S_HP_EN1       = 16'h0008;
+    localparam S_HP_SWPWRDOWN = 16'h0010;
+    localparam S_HP_EN2       = 16'h0020;
+    localparam S_HP_EN3       = 16'h0040;
+    localparam S_HP_EN4       = 16'h0080;
+    localparam S_SYS_STATUS   = 16'h0100;
+    localparam S_NEW_FAULT    = 16'h0200;
+    localparam S_INLIM        = 16'h0400;
+    localparam S_CHARGEWRITE  = 16'h0800;
+    localparam S_CHARGEREAD   = 16'h1000;
+    localparam S_IDLE         = 16'h2000;
 
     reg txActive;
 
@@ -312,9 +315,49 @@ module polling_master#(
                 else
                     if(txActive)
                     begin
+                        i2c_read_write       <= 'd0; // Write
+                        state                <= S_CHARGEWRITE;
+                        i2c_register_address <= 8'd02; // Charge Current Control
+                        i2c_device_address   <= PMIC;
+                        inlim                <= i2c_miso_data;
+                        i2c_mosi_data        <= 8'h20;
+                        txActive             <= 1'd0;
+                    end
+                    else
+                        i2c_enable           <= 'd1;
+            end
+            S_CHARGEWRITE:
+            begin
+                if(i2c_busy)
+                begin
+                    txActive         <= 1'd1;
+                    i2c_enable       <= 'd0;
+                end
+                else
+                    if(txActive)
+                    begin
+                        i2c_read_write       <= 'd1; // Read
+                        state                <= S_CHARGEREAD;
+                        i2c_register_address <= 8'd02; // Charge Current Control
+                        i2c_device_address   <= PMIC;
+                        txActive             <= 1'd0;
+                    end
+                    else
+                        i2c_enable           <= 'd1;
+            end
+            S_CHARGEREAD:
+            begin
+                if(i2c_busy)
+                begin
+                    txActive         <= 1'd1;
+                    i2c_enable       <= 'd0;
+                end
+                else
+                    if(txActive)
+                    begin
                         state                <= S_IDLE;
                         txActive             <= 1'd0;
-                        inlim                <= i2c_miso_data;
+                        chargeCurrent        <= i2c_miso_data;
                     end
                     else
                         i2c_enable           <= 'd1;

@@ -95,7 +95,7 @@ ENDC
     call ClearMemoryPage8000
     call CheckFastBoot
     call z, LoadTileset
-    
+
     ld b, 3
 ; Load Tilemap
     ld hl, $98C2
@@ -117,7 +117,7 @@ ENDC
     add hl, de
     pop de
 
-    dec b ; Hit 3 times for CGB logo, then once more for Nintendo logo 
+    dec b ; Hit 3 times for CGB logo, then once more for Nintendo logo
     jr nz, .tilemapLoop
 
     dec d ; Hit twice, once at end of CGB logo, next at end of Nintendo logo
@@ -444,7 +444,7 @@ ENDM
 MACRO raw_palette_comb ; Obj0, Obj1, Bg
     db (\1) * 2, (\2) * 2, (\3) * 2
 ENDM
-    palette_comb  4,  4, 29 ;  0, Right + A
+    palette_comb  4,  4, 29 ;  0, Right + A + B
     palette_comb 18, 18, 18 ;  1, Right
     palette_comb 20, 20, 20 ;  2
     palette_comb 24, 24, 24 ;  3, Down + A
@@ -529,10 +529,10 @@ Palettes:
     dw $0000, $4200, $037F, $7FFF ; 27
     dw $7FFF, $7E8C, $7C00, $0000 ; 28
     dw $7FFF, $1BEF, $6180, $0000 ; 29
-    dw $0E10, $2DCA, $3166, $24E3 ; 30, dmg
-    dw $6BFC, $3B11, $2DA7, $1061 ; 31, bgb
+    dw $43E0, $3B40, $2A60, $1DC0 ; 30, gbl
+    dw $01EF, $018B, $0147, $00E2 ; 31, dmg
 
-    
+
 KeyCombinationPalettes:
     db 1  * 3  ; Right
     db 48 * 3  ; Left
@@ -566,7 +566,7 @@ AnimationColors:
     dw $6D38 ; Purple
     dw $5500 ; Blue
     dw $6D60 ; Blue ; AGB version of blue, only used when AGB mode is set
-    
+
 AnimationColorsEnd:
 
 ; Helper Functions
@@ -838,9 +838,9 @@ Preboot:
 
     ; Check cart CGB compatibility byte
     ld a, [$143]
-    bit 7, a 
-    call z, EmulateDMG 
-    bit 7, a 
+    bit 7, a
+    call z, EmulateDMG
+    bit 7, a
 
     ldh [rKEY0], a ; write CGB compatibility byte, CGB mode
     ldh a, [TitleChecksum]
@@ -1196,7 +1196,7 @@ CheckAGBPalette:
 ; Check if we are loading the final blue color
     ld hl, AnimationColors+14
     ld a, e
-    cp a, l 
+    cp a, l
     jr nz, .normalPalette
     inc de ; Skip the CGB blue, use AGB blue
     inc de

@@ -1,3 +1,18 @@
+## v18.5
+## Added
+- Support for streaming on macOS and Discord.
+
+## Changed
+- The default palettes changed for `A + B + Right` and `A + B + Left`. All credit to **rayjt9**.
+- Tuned settings for the Chromatic Power Core.
+
+## Fixed
+- LED indicator light now correct for AA, USB, and Chromatic Power Core use cases.
+- Fixed an issue where the clock would skip in titles with an RTC (e.g. Pokemon Crystal).
+- Fixed an issue where save data could be lost in some titles (e.g. Pokemon Crystal).
+- Streaming no longer requires flipping the video in OBS.
+- Miscellaneous compatibility fixes.
+
 ## v18.4
 
 ### Added

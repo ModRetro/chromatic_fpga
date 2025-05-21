@@ -72,3 +72,6 @@ Please submit all issues and bug reports through our [Contact Form](https://modr
 ## Attributions
 - [GOWIN Semiconductor](https://www.gowinsemi.com/en/)
 - [MiSTer](https://github.com/MiSTer-devel/Gameboy_MiSTer)
+
+## Special Thanks
+- [rayjt9] For their palette improvements to the BootROM.

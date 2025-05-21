@@ -53,15 +53,12 @@
 /* Video Stream related */
 `define PAYLOAD_HEADER_LENGTH 8'd12
 
-//`endif /* UVC_DEFS_H_ */
-//
 /* USB Video resolution */
-`define BITS_PER_PIXEL  24
-`define WIDTH           160
-`define HEIGHT          144
+`define BITS_PER_PIXEL  8'd16
+`define WIDTH           16'd160
+`define HEIGHT          16'd144
 
 /* Frame rate */
-//`define FPS  78
 `define FPS  60
 `define FPS_MAX  60
 `define FPS_MIN  1
@@ -69,10 +66,13 @@
 `define MAX_FRAME_SIZE (`WIDTH * `HEIGHT * `BITS_PER_PIXEL / 8)
 `define MIN_BIT_RATE   (`MAX_FRAME_SIZE * `FPS_MIN * 8)
 `define MAX_BIT_RATE   (`MAX_FRAME_SIZE * `FPS_MAX * 8)
-`define PACKET_PER_MFRAME   (3)
-`define ADDITIONAL_PACKET   (2)
-`define PACKET_SIZE    (1024)
+/* Only single packet per mframe supported */
+`define PACKET_PER_MFRAME   (1)
+/* usb code here does not handle additional packets, keep at 0 */
+`define ADDITIONAL_PACKET   (16'd0)
+`define PACKET_SIZE    (12'd1024)
 `define PAYLOAD_SIZE   (`PACKET_PER_MFRAME * `PACKET_SIZE)
+`define DEVICE_CLOCK_FREQUENCY (32'd60000000)
 
 /* Interval defined in 100ns units */
-`define FRAME_INTERVAL  (10000000/`FPS)
+`define FRAME_INTERVAL  (32'd10000000/`FPS)

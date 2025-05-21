@@ -1,0 +1,16 @@
+[General]
+ipc_version=4
+file=color_space_convertor
+module=Color_Space_Convertor_Top
+target_device=gw5a25a-013
+type=CSC
+version=1.0
+
+[Config]
+COEFFICIENT_WIDTH=11
+COLOR_MODEL=1
+DEF_IN_DATA_WIDTH=0
+DEF_OUT_DATA_WIDTH=0
+DISABLE_IO_INSERTION=false
+LANG=0
+Synthesis_tool=GowinSynthesis

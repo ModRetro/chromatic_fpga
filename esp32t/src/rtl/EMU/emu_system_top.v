@@ -5,6 +5,7 @@ module emu_system_top
     input               hclk,
     input               pclk,
     input               reset_n,
+    input               POWER_GOOD,
     
     input               paletteOff,
     
@@ -196,6 +197,8 @@ module emu_system_top
                 gbreset <= gbreset_ungated;
                 
             if (MENU_CLOSED & BTN_MENU & BTN_A & BTN_B & BTN_START & BTN_SEL) gbreset <= 1'd1;
+            
+            if (~POWER_GOOD) gbreset <= 1'b1;
         end
     end
     
