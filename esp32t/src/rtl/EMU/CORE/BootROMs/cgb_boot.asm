@@ -444,7 +444,7 @@ ENDM
 MACRO raw_palette_comb ; Obj0, Obj1, Bg
     db (\1) * 2, (\2) * 2, (\3) * 2
 ENDM
-    palette_comb  4,  4, 29 ;  0, Right + A + B
+    palette_comb  4,  4, 29 ;  0, Right + A
     palette_comb 18, 18, 18 ;  1, Right
     palette_comb 20, 20, 20 ;  2
     palette_comb 24, 24, 24 ;  3, Down + A

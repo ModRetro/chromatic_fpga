@@ -1,0 +1,5 @@
+
+`define UART_BASE_IFACE  8'd2
+`define UART_CTRL_IFACE  (`UART_BASE_IFACE)
+`define UART_DATA_IFACE  (`UART_BASE_IFACE + 1)
+

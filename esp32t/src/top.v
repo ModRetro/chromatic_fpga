@@ -434,13 +434,23 @@ module top #(parameter ISSIMU=0)
     button_debouncer debouncer_SEL       (gClk, BTN_SEL       , BTN_SEL_filtered       );
     button_debouncer debouncer_START     (gClk, BTN_START     , BTN_START_filtered     );
     
+    wire [63:0] paletteBGIn;
+    wire [63:0] paletteOBJIn;
+    wire gbc_mode;
+    wire [63:0] bgpd;
+    
     emu_system_top u_emu_system_top(
         .hclk(hClk),
         .pclk(pClk),
         .reset_n(~memrst),//lock_o),
         .POWER_GOOD(~POWER_ON_FPGA),
         
+        .customPaletteEna(paletteBGIn[63]),
         .paletteOff(system_control[12]),
+        .paletteBGIn(paletteBGIn),
+        .paletteOBJIn(paletteOBJIn),
+        .gbc_mode(gbc_mode),
+        .bgpd(bgpd),
         
         .BTN_NODIAGONAL(system_control[11]),
         .BTN_A(BTN_A_filtered | MCU_buttons[3]),
@@ -588,6 +598,9 @@ module top #(parameter ISSIMU=0)
         .E_UART_DTR(UART_DTR), // used for ESP32_EN
         .E_UART_RTS(UART_RTS), // used for ESP32_IO0 (bootloader select)
 
+        .left(left),
+        .right(right),
+
         .hLineValid(hr1),
         .hEnable(he1),
         .hFrameValid(vr1),
@@ -660,6 +673,10 @@ module top #(parameter ISSIMU=0)
         .LED_Yellow(LED_Yellow),
         .LED_White(LED_White),
         .system_control(system_control),
+        .paletteBGIn(paletteBGIn),
+        .paletteOBJIn(paletteOBJIn),
+        .gbc_mode(gbc_mode),
+        .bgpd(bgpd),
         .uart_rx_data(uart_rx_data[7:0]),
         .uart_rx_val(uart_rx_val),
         .uart_tx_busy(uart_tx_busy),

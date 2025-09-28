@@ -50,6 +50,10 @@
 `define VS_PROBE_CONTROL        8'h01
 `define VS_COMMIT_CONTROL       8'h02
 
+`define UVC_INTERFACE_BASE	0
+`define UVC_VC_INTERFACE	(`UVC_INTERFACE_BASE)
+`define UVC_VS_INTERFACE	(`UVC_INTERFACE_BASE + 1)
+
 /* Video Stream related */
 `define PAYLOAD_HEADER_LENGTH 8'd12
 

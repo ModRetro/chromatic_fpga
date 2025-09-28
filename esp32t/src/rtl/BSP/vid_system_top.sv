@@ -125,18 +125,10 @@ module vid_system_top #(parameter ISSIMU=0)
         end
     end
         
-/* 50% blend
     wire [6:0] sum_r = {hWrBurstQ[4:0],1'd0} + {gb_lcd_data[4:0],1'd0};
     wire [6:0] sum_g = {hWrBurstQ[9:5],1'd0} + {gb_lcd_data[9:5],1'd0};
     wire [6:0] sum_b = {hWrBurstQ[14:10],1'd0} + {gb_lcd_data[14:10],1'd0};
-*/
-/* 25% blend
-*/
-    wire [6:0] sum_r = hWrBurstQ[4:0] + {gb_lcd_data[4:0],1'd0} + gb_lcd_data[4:0];
-    wire [6:0] sum_g = hWrBurstQ[9:5] + {gb_lcd_data[9:5],1'd0} + gb_lcd_data[9:5];
-    wire [6:0] sum_b = hWrBurstQ[14:10] + {gb_lcd_data[14:10],1'd0} + gb_lcd_data[14:10];
-/* 12.5% blend
-*/
+
     wire [5:0]  game_r  =   frameBlendEnable ? sum_r[6:1] : {gb_lcd_data[4:0],1'b0};
     wire [5:0]  game_g  =   frameBlendEnable ? sum_g[6:1] : {gb_lcd_data[9:5],1'b0};
     wire [5:0]  game_b  =   frameBlendEnable ? sum_b[6:1] : {gb_lcd_data[14:10],1'b0};

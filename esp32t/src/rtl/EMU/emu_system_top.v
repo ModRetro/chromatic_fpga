@@ -7,7 +7,12 @@ module emu_system_top
     input               reset_n,
     input               POWER_GOOD,
     
+    input               customPaletteEna,
+    input [63:0]        paletteBGIn,
+    input [63:0]        paletteOBJIn,
     input               paletteOff,
+    output              gbc_mode,
+    output [63:0]       bgpd,
     
     input               BTN_NODIAGONAL,
     input               BTN_A,
@@ -289,7 +294,13 @@ module emu_system_top
 
         .isGBC(1'd1),
         .real_cgb_boot(1'd0),
+        .customPaletteEna(customPaletteEna),
+        .paletteBGIn(paletteBGIn),
+        .paletteOBJIn(paletteOBJIn),
+        
         .paletteOff(paletteOff),
+        .gbc_mode(gbc_mode),
+        .bgpd(bgpd),
 
         // cartridge interface
         // can adress up to 1MB ROM

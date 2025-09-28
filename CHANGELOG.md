@@ -1,3 +1,14 @@
+## v18.6
+
+## Added
+- Support for streaming audio to PCs over USB.
+
+## Changed
+- Inverted the audio output polarity to match GBC.
+
+## Fixed
+- Reworked the design of frame blending.
+
 ## v18.5
 ## Added
 - Support for streaming on macOS and Discord.

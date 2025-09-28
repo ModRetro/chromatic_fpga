@@ -24,6 +24,9 @@ SOFTWARE.
 ******************************************************************************/
 `include "usb_defs.v"
 `include "uvc_defs.v"
+`include "uac_defs.v"
+`include "uart_defs.v"
+
 module usb_desc #(
         // Vendor ID to report in device descriptor.
         parameter VENDORID = 16'h0403,
@@ -47,28 +50,28 @@ module usb_desc #(
 )
 (
 
-        input        CLK                  ,
-        input        RESET                ,
+        input        CLK,
+        input        RESET,
         input  [7:0] playerNum,
         input  [63:0] serial,
-        input  [9:0] i_descrom_raddr        ,
-        output [7:0] o_descrom_rdat         ,
-        output [9:0] o_desc_dev_addr        ,
-        output [7:0] o_desc_dev_len         ,
-        output [9:0] o_desc_qual_addr       ,
-        output [7:0] o_desc_qual_len        ,
-        output [9:0] o_desc_fscfg_addr      ,
-        output [7:0] o_desc_fscfg_len       ,
-        output [9:0] o_desc_hscfg_addr      ,
-        output [7:0] o_desc_hscfg_len       ,
-        output [9:0] o_desc_oscfg_addr      ,
-        output [9:0] o_desc_strlang_addr    ,
-        output [9:0] o_desc_strvendor_addr  ,
-        output [7:0] o_desc_strvendor_len   ,
-        output [9:0] o_desc_strproduct_addr ,
-        output [7:0] o_desc_strproduct_len  ,
-        output [9:0] o_desc_strserial_addr  ,
-        output [7:0] o_desc_strserial_len   ,
+        input  [15:0] i_descrom_raddr,
+        output [7:0] o_descrom_rdat,
+        output [15:0] o_desc_dev_addr,
+        output [15:0] o_desc_dev_len,
+        output [15:0] o_desc_qual_addr,
+        output [15:0] o_desc_qual_len,
+        output [15:0] o_desc_fscfg_addr,
+        output [15:0] o_desc_fscfg_len,
+        output [15:0] o_desc_hscfg_addr,
+        output [15:0] o_desc_hscfg_len,
+        output [15:0] o_desc_oscfg_addr,
+        output [15:0] o_desc_strlang_addr,
+        output [15:0] o_desc_strvendor_addr,
+        output [15:0] o_desc_strvendor_len,
+        output [15:0] o_desc_strproduct_addr,
+        output [15:0] o_desc_strproduct_len,
+        output [15:0] o_desc_strserial_addr,
+        output [15:0] o_desc_strserial_len,
         output       o_descrom_have_strings
 );
     // Truncate descriptor data to keep only the necessary pieces;
@@ -77,20 +80,24 @@ module usb_desc #(
 
 
     // Descriptor ROM
-    //   addr   0 ..  17 : device descriptor
-    //   addr  20 ..  29 : device qualifier
-    //   addr  32 ..  98 : full speed configuration descriptor
-    //   addr 112 .. 178 : high speed configuration descriptor
-    //   addr 179 :        other_speed_configuration hack
-    //   addr 192 .. 195 : string descriptor 0 = supported languages
-    //   addr 196 ..     : 3 string descriptors: vendor, product, serial
+    //   addr DESC_DEV_ADDR, +DESC_DEV_LEN     : device descriptor
+    //   addr DESC_QUAL_ADDR, +DESC_QUAL_LEN   : device qualifier
+    //   addr DESC_FSCFG_ADDR, +DESC_FSCFG_LEN : full speed configuration descriptor
+    //         ^sama as^                       : high speed configuration descriptor
+    //   addr DESC_OSCFG_ADDR, +DESC_OSCFG_LEN : other_speed_configuration hack
+    //   addr DESC_STRLANG_ADDR                : string descriptor 0 = supported languages
+    //                                         : 3 string descriptors: vendor, product, serial
     localparam  DESC_DEV_ADDR         = 0;
     localparam  DESC_DEV_LEN          = 18;
     localparam  DESC_QUAL_ADDR        = 20;
     localparam  DESC_QUAL_LEN         = 10;
     localparam  DESC_FSCFG_ADDR       = 32;
-    localparam  DESC_CDCIF_ADDR       = DESC_FSCFG_ADDR + 173 + 6 + 1;
+    localparam  DESC_UAC_ADDR = DESC_FSCFG_ADDR + 173 + 6 + 1;
+    localparam  DESC_UAC_LEN = 110 + 7 + 1;
+    localparam  DESC_CDCIF_ADDR       = DESC_UAC_ADDR + DESC_UAC_LEN;
 
+    localparam AC_CS_START = DESC_UAC_ADDR + 8 + 0;
+    localparam DESC_AC_SIZE =  DESC_UAC_ADDR + 51 + 11 + 1 - AC_CS_START;
     localparam CDC_IAD_BASE = 0; // Relative to DESC_CDCIF_ADDR
     localparam CDC_IAD_LEN  = 8;
 
@@ -123,7 +130,7 @@ module usb_desc #(
 
     localparam  DESC_CDCIF_LEN        = CDC_IAD_LEN + CDC_CTRL_IF_LEN + CDC_HEADER_LEN + CDC_UNION_LEN + CDC_CALL_MGMT_LEN + CDC_ACM_LEN + CDC_NOTIFY_EP_LEN + CDC_CLASS_DATA_LEN + CDC_DATA_IN_EP_LEN + CDC_DATA_OUT_EP_LEN;
     localparam DESC_MSOS_LEN = 0;
-    localparam  DESC_FSCFG_LEN        = 180 + DESC_CDCIF_LEN + DESC_MSOS_LEN;
+    localparam  DESC_FSCFG_LEN        = DESC_UAC_LEN + 180 + DESC_CDCIF_LEN + DESC_MSOS_LEN;
     localparam  DESC_HSCFG_ADDR       = DESC_FSCFG_ADDR;
     localparam  DESC_HSCFG_LEN        = DESC_FSCFG_LEN;
     localparam  DESC_OSCFG_ADDR       = DESC_HSCFG_ADDR + DESC_HSCFG_LEN;
@@ -214,7 +221,7 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 1] <= `USB_DESCTYPE_CONFIGURATION;// 1 bDescriptorType = configuration descriptor
         descrom[DESC_FSCFG_ADDR + 2] <= DESC_FSCFG_LEN[7:0];// 2 wTotalLength L
         descrom[DESC_FSCFG_ADDR + 3] <= DESC_FSCFG_LEN[15:8];// 3 wTotalLength H
-        descrom[DESC_FSCFG_ADDR + 4] <= 8'h04;// 4 bNumInterfaces = 4
+        descrom[DESC_FSCFG_ADDR + 4] <= 8'h06;// 4 bNumInterfaces = 6
         descrom[DESC_FSCFG_ADDR + 5] <= 8'h01;// 5 bConfigurationValue = 1
         descrom[DESC_FSCFG_ADDR + 6] <= 8'h00;// 6 iConfiguration - index of string
         descrom[DESC_FSCFG_ADDR + 7] <= (SELFPOWERED)? 8'hc0 : 8'h80; // 7 bmAttributes
@@ -222,7 +229,7 @@ module usb_desc #(
         //---------------- Interface Association Descriptor -----------------
         descrom[DESC_FSCFG_ADDR + 9 + 0]  <= 8'h08;// 0 bLength
         descrom[DESC_FSCFG_ADDR + 9 + 1] <= `USB_DESCTYPE_INTERFACE_ASSOCIATION;// 1 bDescriptorType - Interface Association
-        descrom[DESC_FSCFG_ADDR + 9 + 2] <= 8'h00;// 2 bFirstInterface - VideoControl i/f
+        descrom[DESC_FSCFG_ADDR + 9 + 2] <= `UVC_INTERFACE_BASE;// 2 bFirstInterface - VideoControl i/f
         descrom[DESC_FSCFG_ADDR + 9 + 3] <= 8'h02;// 3 bInterfaceCount - 2 Interfaces
         descrom[DESC_FSCFG_ADDR + 9 + 4] <= `USB_CLASS_VIDEO;// 4 bFunctionClass - Video Class
         descrom[DESC_FSCFG_ADDR + 9 + 5] <= `USB_VIDEO_INTERFACE_COLLECTION;// 5 bFunctionSubClass - Video Interface Collection
@@ -231,7 +238,7 @@ module usb_desc #(
         //---------------- Video Control (VC) Interface Descriptor -----------------
         descrom[DESC_FSCFG_ADDR + 17 + 0] <= 8'h09;// 0 bLength
         descrom[DESC_FSCFG_ADDR + 17 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType - Interface
-        descrom[DESC_FSCFG_ADDR + 17 + 2] <= 8'h00;// 2 bInterfaceNumber - Interface 0
+        descrom[DESC_FSCFG_ADDR + 17 + 2] <= `UVC_VC_INTERFACE;// 2 bInterfaceNumber - Interface 0
         descrom[DESC_FSCFG_ADDR + 17 + 3] <= 8'h00;// 3 bAlternateSetting
         descrom[DESC_FSCFG_ADDR + 17 + 4] <= 8'h01;// 4 bNumEndpoints = 2
         descrom[DESC_FSCFG_ADDR + 17 + 5] <= `USB_CLASS_VIDEO;// 5 bInterfaceClass - Video Class
@@ -251,11 +258,11 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 26 + 9] <=  {`DEVICE_CLOCK_FREQUENCY}[23:16];// 7-10  dwClockFrequency
         descrom[DESC_FSCFG_ADDR + 26 + 10] <= {`DEVICE_CLOCK_FREQUENCY}[31:24];// 7-10  dwClockFrequency
         descrom[DESC_FSCFG_ADDR + 26 + 11] <= 8'h01;// 11 bInCollection - One Streaming Interface
-        descrom[DESC_FSCFG_ADDR + 26 + 12] <= 8'h01;// 12 baInterfaceNr - Number of the Streaming interface
+        descrom[DESC_FSCFG_ADDR + 26 + 12] <= `UVC_VS_INTERFACE;// 12 baInterfaceNr - Number of the Streaming interface
         //---------------- Input Terminal (Camera) Descriptor - Represents the CCD sensor----------------
         //---------------- (Simulated here)----------------
         descrom[DESC_FSCFG_ADDR + 39 + 0] <= 8'h12;// 0 bLength
-        descrom[DESC_FSCFG_ADDR + 39 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType = Audio Interface Descriptor
+        descrom[DESC_FSCFG_ADDR + 39 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType = Video Interface Descriptor
         descrom[DESC_FSCFG_ADDR + 39 + 2] <= `USB_VC_INPUT_TERMINAL;// 2 bDescriptorSubtype = 2 Input Terminal
         descrom[DESC_FSCFG_ADDR + 39 + 3] <= 8'h01;// 3 bTerminalID
         descrom[DESC_FSCFG_ADDR + 39 + 4] <= 8'h01;// 4 wTerminalType
@@ -284,7 +291,7 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 57 + 8] <= 8'h00;// 8 iTerminal - Unused
         //---------------- Standard Interrupt Endpoint Descriptor ----------------
         descrom[DESC_FSCFG_ADDR + 66 + 0] <= 8'h07;// 0 bLength
-        descrom[DESC_FSCFG_ADDR + 66 + 1] <= `USB_DESCTYPE_ENDPOINT;// 1 bDescriptorType = Audio Interface Descriptor
+        descrom[DESC_FSCFG_ADDR + 66 + 1] <= `USB_DESCTYPE_ENDPOINT;// 1 bDescriptorType = Endpoint Descriptor
         descrom[DESC_FSCFG_ADDR + 66 + 2] <= (`VIDEO_STATUS_EP_NUM | 8'h80);// 2 bEndpointAddress - IN endpoint
         descrom[DESC_FSCFG_ADDR + 66 + 3] <= 8'h03;// 3 bmAttributes - Interrupt transfer
         descrom[DESC_FSCFG_ADDR + 66 + 4] <= 8'h40;// 4 wMaxPacketSize - 64 bytes
@@ -300,7 +307,7 @@ module usb_desc #(
         //---------------- Zero-bandwidth Alternate Setting 0  ----------------
         descrom[DESC_FSCFG_ADDR + 78 + 0] <= 8'h09;// 0 bLength
         descrom[DESC_FSCFG_ADDR + 78 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType - Interface
-        descrom[DESC_FSCFG_ADDR + 78 + 2] <= 8'h01;// 2 bInterfaceNumber - Interface 1
+        descrom[DESC_FSCFG_ADDR + 78 + 2] <= `UVC_VS_INTERFACE;// 2 bInterfaceNumber - Interface 1
         descrom[DESC_FSCFG_ADDR + 78 + 3] <= 8'h00;// 3 bAlternateSetting - 0
         descrom[DESC_FSCFG_ADDR + 78 + 4] <= 8'h00;// 4 bNumEndpoints - No bandwidth used
         descrom[DESC_FSCFG_ADDR + 78 + 5] <= `USB_CLASS_VIDEO;// 5 bInterfaceClass - Video Class
@@ -394,7 +401,7 @@ module usb_desc #(
         //Alternate Setting 1
         descrom[DESC_FSCFG_ADDR + 164 + 0] <= 8'h09;// 0 bLength
         descrom[DESC_FSCFG_ADDR + 164 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType - Interface
-        descrom[DESC_FSCFG_ADDR + 164 + 2] <= 8'h01;// 2 bInterfaceNumber - Interface 1
+        descrom[DESC_FSCFG_ADDR + 164 + 2] <= `UVC_VS_INTERFACE;// 2 bInterfaceNumber - Interface 1
         descrom[DESC_FSCFG_ADDR + 164 + 3] <= 8'h01;// 3 bAlternateSetting - 1
         descrom[DESC_FSCFG_ADDR + 164 + 4] <= 8'h01;// 4 bNumEndpoints
         descrom[DESC_FSCFG_ADDR + 164 + 5] <= `USB_CLASS_VIDEO;// 5 bInterfaceClass - Video Class
@@ -411,12 +418,155 @@ module usb_desc #(
         descrom[DESC_FSCFG_ADDR + 173 + 5] <= {3'd0,{`ADDITIONAL_PACKET}[1:0],{`PACKET_SIZE}[10:8]};// 5 wMaxPacketSize
         descrom[DESC_FSCFG_ADDR + 173 + 6] <= 8'h01;// 6 bInterval
 
+        /* UAC Interface*/
+        // Stick to UAC 2.0 revision. The difference between revisions is HUGE.
+        //---------------- Interface Association Descriptor -----------------
+        descrom[DESC_UAC_ADDR + 0 + 0]  <= 8'h08;// 0 bLength
+        descrom[DESC_UAC_ADDR + 0 + 1] <= `USB_DESCTYPE_INTERFACE_ASSOCIATION;// 1 bDescriptorType - Interface Association
+        descrom[DESC_UAC_ADDR + 0 + 2] <= `UAC_INTERFACE_BASE;// 2 bFirstInterface - AudioControl i/f
+        descrom[DESC_UAC_ADDR + 0 + 3] <= 8'h02;// 3 bInterfaceCount - 2 Interfaces
+        descrom[DESC_UAC_ADDR + 0 + 4] <= `USB_CLASS_AUDIO;// 4 bFunctionClass - Video Class
+        descrom[DESC_UAC_ADDR + 0 + 5] <= 8'h00;// 5 bFunctionSubClass - Undefined
+        descrom[DESC_UAC_ADDR + 0 + 6] <= `AF_VERSION_02_00;// 6 bFunctionProtocol - AF_VERSION_02_00
+        descrom[DESC_UAC_ADDR + 0 + 7] <= 8'h02;// 7 iFunction - index of string
 
+
+        //---------------- Audio Control (AC) Interface Descriptor -------------
+        descrom[DESC_UAC_ADDR + 8 + 0] <= 8'h09;// 0 bLength
+        descrom[DESC_UAC_ADDR + 8 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 8 + 2] <= `UAC_AC_INTERFACE;// 2 bInterfaceNumber
+        descrom[DESC_UAC_ADDR + 8 + 3] <= 8'h00;// 3 bAlternateSetting
+        descrom[DESC_UAC_ADDR + 8 + 4] <= 8'h00;// 4 bNumEndpoints
+        descrom[DESC_UAC_ADDR + 8 + 5] <= `USB_CLASS_AUDIO;// 5 bInterfaceClass
+        descrom[DESC_UAC_ADDR + 8 + 6] <= `USB_AUDIO_CONTROL;// 6 bInterfaceSubClass
+        descrom[DESC_UAC_ADDR + 8 + 7] <= `AF_VERSION_02_00;// 7 bInterafceProtocol
+        descrom[DESC_UAC_ADDR + 8 + 8] <= 8'h02;// 8 iInterface - Index of string
+        //---------------- Audio Control CS Interface Header -----------------
+        descrom[DESC_UAC_ADDR + 17 + 0] <= 8'h09;// 0 bLength
+        descrom[DESC_UAC_ADDR + 17 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 17 + 2] <= `UAC_HEADER;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 17 + 3] <= 8'h00;// 3-4 bcdADC 0x0200
+        descrom[DESC_UAC_ADDR + 17 + 4] <= 8'h02;
+        descrom[DESC_UAC_ADDR + 17 + 5] <= 8'h0B;// 5 bCategory (AUDIO/VIDEO?)
+        descrom[DESC_UAC_ADDR + 17 + 6] <= DESC_AC_SIZE[7:0];// 6-7 wTotalLength
+        descrom[DESC_UAC_ADDR + 17 + 7] <= DESC_AC_SIZE[15:8];
+        descrom[DESC_UAC_ADDR + 17 + 8] <= 8'h00;// 8 bmControls
+
+        //---------------- Audio Control CS Interface Clock Source -------------
+        descrom[DESC_UAC_ADDR + 26 + 0] <= 8'h08;// 0 bLength
+        descrom[DESC_UAC_ADDR + 26 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 26 + 2] <= `UAC2_CLOCK_SOURCE;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 26 + 3] <= 8'h01;// 3 bClockID
+        descrom[DESC_UAC_ADDR + 26 + 4] <= 8'h01;// 4 bmClockAttributes (internal fixed)
+        descrom[DESC_UAC_ADDR + 26 + 5] <= 8'h01;// 5 bmControls
+        descrom[DESC_UAC_ADDR + 26 + 6] <= 8'h02;// 6 bAssocTerminal
+        descrom[DESC_UAC_ADDR + 26 + 7] <= 8'h00;// 7 iClockSource
+
+        //---------------- Audio Control CS Interface Input Terminal -----------
+        descrom[DESC_UAC_ADDR + 34 + 0] <= 8'h11;// 0 bLength
+        descrom[DESC_UAC_ADDR + 34 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 34 + 2] <= `UAC_INPUT_TERMINAL;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 34 + 3] <= 8'h02;// 3 bTerminalID
+        descrom[DESC_UAC_ADDR + 34 + 4] <= {`UAC_INPUT_TERMINAL_MICROPHONE}[7:0];// 4-5 wTerminalType ???
+        descrom[DESC_UAC_ADDR + 34 + 5] <= {`UAC_INPUT_TERMINAL_MICROPHONE}[15:8];
+        descrom[DESC_UAC_ADDR + 34 + 6] <= 8'h00;// 6 bAssocTerminal
+        descrom[DESC_UAC_ADDR + 34 + 7] <= 8'h01;// 7 bCSourceID
+        descrom[DESC_UAC_ADDR + 34 + 8] <= 8'h02;// 8 bNrChannels
+        descrom[DESC_UAC_ADDR + 34 + 9] <= 8'h03;// 9-12 bmChannelConfig (L/R)
+        descrom[DESC_UAC_ADDR + 34 + 10] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 34 + 11] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 34 + 12] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 34 + 13] <= 8'h00;// 13 iChannelNames
+        descrom[DESC_UAC_ADDR + 34 + 14] <= 8'h00;// 14-15 bmControls
+        descrom[DESC_UAC_ADDR + 34 + 15] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 34 + 16] <= 8'h00;// 16 iTerminal
+
+        //---------------- Audio Control CS Interface Output Terminal ----------
+        descrom[DESC_UAC_ADDR + 51 + 0] <= 8'h0C;// 0 bLength
+        descrom[DESC_UAC_ADDR + 51 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 51 + 2] <= `UAC_OUTPUT_TERMINAL;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 51 + 3] <= 8'h03;// 3 bTerminalID
+        descrom[DESC_UAC_ADDR + 51 + 4] <= {`UAC_TERMINAL_STREAMING}[7:0];// 4-5 wTerminalType ???
+        descrom[DESC_UAC_ADDR + 51 + 5] <= {`UAC_TERMINAL_STREAMING}[15:8];
+        descrom[DESC_UAC_ADDR + 51 + 6] <= 8'h00;// 6 bAssocTerminal
+        descrom[DESC_UAC_ADDR + 51 + 7] <= 8'h02;// 7 bSourceID
+        descrom[DESC_UAC_ADDR + 51 + 8] <= 8'h01;// 8 bCSourceID
+        descrom[DESC_UAC_ADDR + 51 + 9] <= 8'h00;// 9-10 bmControls
+        descrom[DESC_UAC_ADDR + 51 + 10] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 51 + 11] <= 8'h00;// 11 iTerminal
+
+        //---------------- Audio Streaming (AS) Interface Descriptor -----------
+        //Alt0: no EP
+        descrom[DESC_UAC_ADDR + 63 + 0] <= 8'h09;// 0 bLength
+        descrom[DESC_UAC_ADDR + 63 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 63 + 2] <= `UAC_AS_INTERFACE;// 2 bInterfaceNumber
+        descrom[DESC_UAC_ADDR + 63 + 3] <= 8'h00;// 3 bAlternateSetting
+        descrom[DESC_UAC_ADDR + 63 + 4] <= 8'h00;// 4 bNumEndpoints
+        descrom[DESC_UAC_ADDR + 63 + 5] <= `USB_CLASS_AUDIO;// 5 bInterfaceClass
+        descrom[DESC_UAC_ADDR + 63 + 6] <= `USB_AUDIO_STREAMING;// 6 bInterfaceSubClass
+        descrom[DESC_UAC_ADDR + 63 + 7] <= `AF_VERSION_02_00;// 7 bInterafceProtocol
+        descrom[DESC_UAC_ADDR + 63 + 8] <= 8'h00;// 8 iInterface - Index of string
+        //Alt1: EP
+        descrom[DESC_UAC_ADDR + 72 + 0] <= 8'h09;// 0 bLength
+        descrom[DESC_UAC_ADDR + 72 + 1] <= `USB_DESCTYPE_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 72 + 2] <= `UAC_AS_INTERFACE;// 2 bInterfaceNumber
+        descrom[DESC_UAC_ADDR + 72 + 3] <= 8'h01;// 3 bAlternateSetting
+        descrom[DESC_UAC_ADDR + 72 + 4] <= 8'h01;// 4 bNumEndpoints
+        descrom[DESC_UAC_ADDR + 72 + 5] <= `USB_CLASS_AUDIO;// 5 bInterfaceClass
+        descrom[DESC_UAC_ADDR + 72 + 6] <= `USB_AUDIO_STREAMING;// 6 bInterfaceSubClass
+        descrom[DESC_UAC_ADDR + 72 + 7] <= `AF_VERSION_02_00;// 7 bInterafceProtocol
+        descrom[DESC_UAC_ADDR + 72 + 8] <= 8'h00;// 8 iInterface - Index of string
+        //---------------- Audio Streaming CS Interface --------------------
+        descrom[DESC_UAC_ADDR + 81 + 0] <= 8'h10;// 0 bLength
+        descrom[DESC_UAC_ADDR + 81 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 81 + 2] <= `UAC_AS_GENERAL;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 81 + 3] <= 8'h03;// 3 bTerminalLink
+        descrom[DESC_UAC_ADDR + 81 + 4] <= 8'h00;// 4 bmControls
+        descrom[DESC_UAC_ADDR + 81 + 5] <= `UAC_FORMAT_TYPE_I;// 5 bFormatType
+        descrom[DESC_UAC_ADDR + 81 + 6] <= {`UAC_FORMAT_TYPE_I_PCM}[7:0];// 6-9 bmFormats
+        descrom[DESC_UAC_ADDR + 81 + 7] <= {`UAC_FORMAT_TYPE_I_PCM}[15:8];
+        descrom[DESC_UAC_ADDR + 81 + 8] <= {`UAC_FORMAT_TYPE_I_PCM}[23:16];
+        descrom[DESC_UAC_ADDR + 81 + 9] <= {`UAC_FORMAT_TYPE_I_PCM}[31:24];
+        descrom[DESC_UAC_ADDR + 81 + 10] <= 8'h02;// 13 bNrChannels
+        descrom[DESC_UAC_ADDR + 81 + 11] <= 8'h03;// 11-14 bmChannelConfig
+        descrom[DESC_UAC_ADDR + 81 + 12] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 81 + 13] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 81 + 14] <= 8'h00;
+        descrom[DESC_UAC_ADDR + 81 + 15] <= 8'h00;// 15 iChannelNames
+
+        //---------------- Audio Streaming CS Interface Format Type -----------
+        descrom[DESC_UAC_ADDR + 97 + 0] <= 8'h06;// 0 bLength
+        descrom[DESC_UAC_ADDR + 97 + 1] <= `USB_DESCTYPE_CS_INTERFACE;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 97 + 2] <= `UAC_FORMAT_TYPE;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 97 + 3] <= `UAC_FORMAT_TYPE_I;// 3 bFormatType
+        descrom[DESC_UAC_ADDR + 97 + 4] <= 8'h02;// 4 bSubframeSize
+        descrom[DESC_UAC_ADDR + 97 + 5] <= 8'h10;// 5 bBitResolution
+
+        //Standard AS Isochronous Data Endpoint Descriptor
+        descrom[DESC_UAC_ADDR + 103 + 0] <= 8'h07;// 0 bLength
+        descrom[DESC_UAC_ADDR + 103 + 1] <= `USB_DESCTYPE_ENDPOINT;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 103 + 2] <= (`AUDIO_DATA_EP_NUM | 8'h80);// 2 bEndpointAddress - IN Endpoint
+        descrom[DESC_UAC_ADDR + 103 + 3] <= 8'h05;// 3 bmAttributes - Isochronous EP (Asynchronous)
+        descrom[DESC_UAC_ADDR + 103 + 4] <= {`UAC_PACKET_SIZE}[7:0];// 4 wMaxPacketSize 1x 1023 bytes
+        descrom[DESC_UAC_ADDR + 103 + 5] <= {3'd0, 2'b00,{`UAC_PACKET_SIZE}[10:8]};// 5 wMaxPacketSize
+        descrom[DESC_UAC_ADDR + 103 + 6] <= 8'h01;// 6 bInterval
+
+        //CS AS Isochronous Data Endpoint Descriptor
+        descrom[DESC_UAC_ADDR + 110 + 0] <= 8'h08;// 0 bLength
+        descrom[DESC_UAC_ADDR + 110 + 1] <= `USB_DESCTYPE_CS_ENDPOINT;// 1 bDescriptorType
+        descrom[DESC_UAC_ADDR + 110 + 2] <= `UAC_EP_GENERAL;// 2 bDescriptorSubType
+        descrom[DESC_UAC_ADDR + 110 + 3] <= 8'h00;// 3 bmAttributes
+        descrom[DESC_UAC_ADDR + 110 + 4] <= 8'h00;// 4 bmControls
+        descrom[DESC_UAC_ADDR + 110 + 5] <= 8'h00;// 5 bLockDelayUnits
+        descrom[DESC_UAC_ADDR + 110 + 6] <= 8'h00;// 6 wLockDelay
+        descrom[DESC_UAC_ADDR + 110 + 7] <= 8'h00;// 6 wLockDelay
+
+	if (DESC_CDCIF_LEN != 0) begin
         /*CDC Interface*/
         //---------------- Interface Association Descriptor -----------------
         descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 0]  <= 8'h08;// 0 bLength
         descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 1] <= `USB_DESCTYPE_INTERFACE_ASSOCIATION;// 1 bDescriptorType - Interface Association
-        descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 2] <= 8'h02;// 2 bFirstInterface - VideoControl i/f
+        descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 2] <= `UART_BASE_IFACE;// 2 bFirstInterface - VideoControl i/f
         descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 3] <= 8'h02;// 3 bInterfaceCount - 2 Interfaces
         descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 4] <= `USB_CLASS_COMMUNICATIONS;// 4 bFunctionClass - CDC
         descrom[DESC_CDCIF_ADDR + CDC_IAD_BASE + 5] <= 8'h02;// 5 bFunctionSubClass - abstract control
@@ -426,7 +576,7 @@ module usb_desc #(
         //---------------- Interface Descriptor -----------------
         descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 0] <= 8'h09;// bLength = 9 bytes
         descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 1] <= 8'h04;// bDescriptorType = interface descriptor
-        descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 2] <= 8'h02;// bInterfaceNumber = 2
+        descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 2] <= `UART_CTRL_IFACE;// bInterfaceNumber = 2
         descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 3] <= 8'h00;// bAlternateSetting = 0
         descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 4] <= 8'h01;// bNumEndpoints = 1
         descrom[DESC_CDCIF_ADDR + CDC_CTRL_IF_BASE + 5] <= 8'h02;// bInterfaceClass = CDC
@@ -444,14 +594,14 @@ module usb_desc #(
         descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 0] <= 8'h05;// bLength
         descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 1] <= 8'h24;// bDescriptorType = CS_INTERFACE
         descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 2] <= 8'h06;// bDescriptorSubType = Union functional descriptor
-        descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 3] <= 8'h02;// bMasterInterface = Communication class interface
-        descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 4] <= 8'h03;// bSlaveInterface = Data class interface
+        descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 3] <= `UART_CTRL_IFACE;// bMasterInterface = Communication class interface
+        descrom[DESC_CDCIF_ADDR + CDC_UNION_BASE + 4] <= `UART_DATA_IFACE;// bSlaveInterface = Data class interface
         //----------------- CDC Mgmt Descriptor -----------------
         descrom[DESC_CDCIF_ADDR + CDC_CALL_MGMT_BASE + 0] <= 8'h05;// bLength
         descrom[DESC_CDCIF_ADDR + CDC_CALL_MGMT_BASE + 1] <= 8'h24;// bDescriptorType = CS_INTERFACE
         descrom[DESC_CDCIF_ADDR + CDC_CALL_MGMT_BASE + 2] <= 8'h01;// bDescriptorSubType = Call management functional descriptor
         descrom[DESC_CDCIF_ADDR + CDC_CALL_MGMT_BASE + 3] <= 8'h03;// bmCapabilities = Device handles call management itself
-        descrom[DESC_CDCIF_ADDR + CDC_CALL_MGMT_BASE + 4] <= 8'h03;// bDataInterface = Data class interface
+        descrom[DESC_CDCIF_ADDR + CDC_CALL_MGMT_BASE + 4] <= `UART_DATA_IFACE;// bDataInterface = Data class interface
         //----------------- CDC ACM Descriptor -----------------
         descrom[DESC_CDCIF_ADDR + CDC_ACM_BASE +  0] <= 8'h04;// bLength
         descrom[DESC_CDCIF_ADDR + CDC_ACM_BASE +  1] <= 8'h24;// bDescriptorType = CS_INTERFACE
@@ -470,7 +620,7 @@ module usb_desc #(
         //----------------- CDC Class Data Interface Descriptor -----------------
         descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 0] <= 8'h09;// bLength = 9 bytes
         descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 1] <= 8'h04;// bDescriptorType = interface descriptor
-        descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 2] <= 8'h03;// bInterfaceNumber = 3
+        descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 2] <= `UART_DATA_IFACE;// bInterfaceNumber = 3
         descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 3] <= 8'h00;// bAlternateSetting
         descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 4] <= 8'h02;// bNumEndpoints = 2
         descrom[DESC_CDCIF_ADDR + CDC_CLASS_DATA_BASE + 5] <= 8'h0A;// bInterfaceClass, Data IF
@@ -493,6 +643,7 @@ module usb_desc #(
         descrom[DESC_CDCIF_ADDR + CDC_DATA_OUT_EP_BASE + 4] <= 8'h00;
         descrom[DESC_CDCIF_ADDR + CDC_DATA_OUT_EP_BASE + 5] <= 8'h02;// wMaxPacketSize = 512 bytes
         descrom[DESC_CDCIF_ADDR + CDC_DATA_OUT_EP_BASE + 6] <= 8'h00;// bInterval = 0 ms
+	end
 
         //Other Speed Addr
         descrom[DESC_OSCFG_ADDR + 0]  <= 8'h07;//

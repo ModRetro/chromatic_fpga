@@ -2,6 +2,11 @@
 
 `include "usb_video/usb_defs.v"
 `include "usb_video/uvc_defs.v"
+`include "usb_video/uac_defs.v"
+
+`define UART_BASE_IFACE  8'd2
+`define UART_CTRL_IFACE  (`UART_BASE_IFACE)
+`define UART_DATA_IFACE  (`UART_BASE_IFACE + 1)
 
 module usbuvcuart_top(
     input               CLK_24MHz,
@@ -21,6 +26,9 @@ module usbuvcuart_top(
     output              E_UART_DTR   , // when UART_RTS = 0, UART This Device Ready to receive.
     output              E_UART_RTS   , // when UART_RTS = 0, UART This Device Ready to receive.
     input               UART_CTS   , // when UART_CTS = 0, UART Opposite Device Ready to receive.
+
+    input [15:0]        left,
+    input [15:0]        right,
 
     output  [7:0]       debugs,
     inout               usb_dxp_io,
@@ -54,6 +62,7 @@ module usbuvcuart_top(
     wire usb_online;
     wire usb_rxpktval;
     wire usb_sof;
+    wire sof_rise;
 
     wire PHY_TXREADY;
     wire PHY_RXACTIVE;
@@ -78,27 +87,26 @@ module usbuvcuart_top(
     wire        setup_active;
     wire        setup_val;
     wire [7:0]  setup_data;
-    wire        fclk_480M;
     wire        fclk_960M;
 
-    wire [9:0]  DESCROM_RADDR       ;
+    wire [15:0] DESCROM_RADDR       ;
     wire [7:0]  DESCROM_RDAT        ;
-    wire [9:0]  DESC_DEV_ADDR       ;
-    wire [7:0]  DESC_DEV_LEN        ;
-    wire [9:0]  DESC_QUAL_ADDR      ;
-    wire [7:0]  DESC_QUAL_LEN       ;
-    wire [9:0]  DESC_FSCFG_ADDR     ;
-    wire [7:0]  DESC_FSCFG_LEN      ;
-    wire [9:0]  DESC_HSCFG_ADDR     ;
-    wire [7:0]  DESC_HSCFG_LEN      ;
-    wire [9:0]  DESC_OSCFG_ADDR     ;
-    wire [9:0]  DESC_STRLANG_ADDR   ;
-    wire [9:0]  DESC_STRVENDOR_ADDR ;
-    wire [7:0]  DESC_STRVENDOR_LEN  ;
-    wire [9:0]  DESC_STRPRODUCT_ADDR;
-    wire [7:0]  DESC_STRPRODUCT_LEN ;
-    wire [9:0]  DESC_STRSERIAL_ADDR ;
-    wire [7:0]  DESC_STRSERIAL_LEN  ;
+    wire [15:0] DESC_DEV_ADDR       ;
+    wire [15:0] DESC_DEV_LEN        ;
+    wire [15:0] DESC_QUAL_ADDR      ;
+    wire [15:0] DESC_QUAL_LEN       ;
+    wire [15:0] DESC_FSCFG_ADDR     ;
+    wire [15:0] DESC_FSCFG_LEN      ;
+    wire [15:0] DESC_HSCFG_ADDR     ;
+    wire [15:0] DESC_HSCFG_LEN      ;
+    wire [15:0] DESC_OSCFG_ADDR     ;
+    wire [15:0] DESC_STRLANG_ADDR   ;
+    wire [15:0] DESC_STRVENDOR_ADDR ;
+    wire [15:0] DESC_STRVENDOR_LEN  ;
+    wire [15:0] DESC_STRPRODUCT_ADDR;
+    wire [15:0] DESC_STRPRODUCT_LEN ;
+    wire [15:0] DESC_STRSERIAL_ADDR ;
+    wire [15:0] DESC_STRSERIAL_LEN  ;
     wire        DESCROM_HAVE_STRINGS;
     wire        RESET_IN;
 
@@ -133,50 +141,98 @@ module usbuvcuart_top(
 
     wire [11:0] uvc_txlen;
     wire [7:0] frame_data;
-    reg  [ 7:0] endpt0_dat;
-    reg         endpt0_send;
+    wire [7:0] endpt0_dat;
+    wire [11:0] endpt0_txlen;
+    wire        endpt0_send;
 
     reg [7:0]   video_txdat;
     reg [11:0]  video_txdat_len;
     reg         video_txcork;
 
+    reg [7:0]   audio_txdat;
+    reg [11:0]  audio_txdat_len;
+    reg         audio_txcork;
+
     localparam EP_CTRL = 4'd0;
     localparam EP_VC = 4'd1;
     localparam EP_VS = 4'd2;
     localparam EP_UART = 4'd3;
+    localparam EP_UAC = {`AUDIO_DATA_EP_NUM}[3:0];
+
+    wire        cuart_txval;
+    wire [ 7:0] cuart_txdat;
+    wire [11:0] cuart_txdat_len;
+
+    wire        cuvc_txval;
+    wire [ 7:0] cuvc_txdat;
+    wire [11:0] cuvc_txdat_len;
+
+    wire        cuac_txval;
+    wire [ 7:0] cuac_txdat;
+    wire [11:0] cuac_txdat_len;
+
+    assign endpt0_dat = cuart_txval ? cuart_txdat :
+                        cuvc_txval ? cuvc_txdat :
+                        cuac_txval ? cuac_txdat :
+                        8'd0;
+    assign endpt0_txlen = cuart_txval ? cuart_txdat_len :
+                        cuvc_txval ? cuvc_txdat_len :
+                        cuac_txval ? cuac_txdat_len :
+                        12'd0;
     /* Right, assuming endpt_sel cannot change during transfer,
      * mux functions signals onto USB Device Controller */
     /* signals to Device Controller from EPs*/
     assign usb_txdat = (endpt_sel == EP_CTRL) ? endpt0_dat[7:0] :
                        (endpt_sel == EP_VS) ? video_txdat  :
+                       (endpt_sel == EP_UAC) ? audio_txdat :
                        uart_txdat;
     /* only valid for ep0 */
+    assign endpt0_send = cuart_txval | cuvc_txval | cuac_txval;
     assign usb_txval = (endpt_sel == EP_CTRL) ? endpt0_send : 1'b0;
 
-    assign usb_txdat_len = (endpt_sel == EP_CTRL) ? 12'd7 :
+    assign usb_txdat_len = (endpt_sel == EP_CTRL) ? endpt0_txlen :
                            (endpt_sel == EP_VS) ? video_txdat_len :
-                           (endpt_sel == EP_UART) ? uart_txdat_len : 12'hFAE;
+                           (endpt_sel == EP_UART) ? uart_txdat_len :
+                           (endpt_sel == EP_UAC) ? audio_txdat_len :
+                           12'hFAE;
 
     assign usb_txcork = (endpt_sel == EP_CTRL) ? 1'b0 :
                         (endpt_sel == EP_VS) ? video_txcork :
-                        (endpt_sel == EP_UART) ? uart_txcork : 1'b1;
+                        (endpt_sel == EP_UART) ? uart_txcork :
+                        (endpt_sel == EP_UAC) ? audio_txcork :
+                        1'b1;
 
-    assign usb_rxrdy = (endpt_sel == EP_UART) ? uart_rxrdy : 1'b0;
+    assign usb_rxrdy = (endpt_sel == EP_UART) ? uart_rxrdy :
+                       (endpt_sel == EP_CTRL) ? 1'b1 : 1'b0;
 
     /* TODO: txiso_pid_i(iso_pid_data) shall be per endpoint, but so far
        we need only 1 packet/microframe on each EP */
 
     /* signals from Device Controller to EPs*/
     wire video_txact = (endpt_sel == EP_VS) ? usb_txact : 0;
+    wire audio_txact = (endpt_sel == EP_UAC) ? usb_txact : 0;
     wire uart_txact = (endpt_sel == EP_UART) ? usb_txact : 0;
 
     wire video_txpop = (endpt_sel == EP_VS) ? usb_txpop : 0;
+    wire audio_txpop = (endpt_sel == EP_UAC) ? usb_txpop : 0;
     wire uart_txpop = (endpt_sel == EP_UART) ? usb_txpop : 0;
 
     wire uart_rxact = (endpt_sel == EP_UART) ? usb_rxact : 0;
 
     wire uart_rxval = (endpt_sel == EP_UART) ? usb_rxval : 0;
 
+    usbuac_ep audio_ep(
+        .rst(RESET_IN),
+        .pClk(pClk),
+        .usb_sof_rise(sof_rise),
+        .gClk(hClk),
+        .left(left),
+        .right(right),
+        .uac_txpop(audio_txpop),
+        .uac_txact(audio_txact),
+        .uac_txdat(audio_txdat),
+        .uac_txdat_len(audio_txdat_len),
+        .uac_txcork(audio_txcork));
 
     wire uvc_fifo_afull;
     wire uvc_fifo_aempty;
@@ -264,33 +320,45 @@ module usbuvcuart_top(
         end
     end
 
-    //==============================================================
-    //======Interface Setting
+    /* Handle Set Interface for sub-blocks */
     wire [7:0] interface_alter_i;
     wire [7:0] interface_alter_o;
     wire [7:0] interface_sel;
     wire       interface_update;
 
-    reg [7:0] interface0_alter;
-    reg [7:0] interface1_alter;
-    assign interface_alter_i = (interface_sel == 0) ?  interface0_alter :
-                               (interface_sel == 1) ?  interface1_alter : 8'd0;
-    always @(posedge pClk) begin
-        if (RESET_IN) begin
-            interface0_alter <= 'd0;
-            interface1_alter <= 'd0;
-        end
-        else begin
-            if (interface_update) begin
-                if (interface_sel == 0) begin
-                    interface0_alter <= interface_alter_o;
-                end
-                else if (interface_sel == 1) begin
-                    interface1_alter <= interface_alter_o;
-                end
-            end
-        end
-    end
+    wire [7:0] uart_iface_alter;
+    wire [7:0] uvc_iface_alter;
+    wire [7:0] uac_iface_alter;
+
+    interface_alt_select uart_interface(
+        .RESET_IN(RESET_IN),
+        .pClk(pClk),
+        .interface_update(interface_update & (interface_sel == `UART_DATA_IFACE)),
+        .interface_alter_i(interface_alter_o),
+        .interface_alter_o(uart_iface_alter)
+    );
+
+    interface_alt_select uvc_interface(
+        .RESET_IN(RESET_IN),
+        .pClk(pClk),
+        .interface_update(interface_update & (interface_sel == `UVC_VS_INTERFACE)),
+        .interface_alter_i(interface_alter_o),
+        .interface_alter_o(uvc_iface_alter)
+    );
+
+    interface_alt_select uac_interface(
+        .RESET_IN(RESET_IN),
+        .pClk(pClk),
+        .interface_update(interface_update & (interface_sel == `UAC_AS_INTERFACE)),
+        .interface_alter_i(interface_alter_o),
+        .interface_alter_o(uac_iface_alter)
+    );
+
+    assign interface_alter_i =
+        (interface_sel == `UART_DATA_IFACE) ?  uart_iface_alter :
+        (interface_sel == `UVC_VS_INTERFACE) ?  uvc_iface_alter :
+        (interface_sel == `UAC_AS_INTERFACE) ?  uac_iface_alter :
+        8'd0;
 
     USB_Device_Controller_Top u_usb_device_controller_top (
              .clk_i                 (pClk          )
@@ -338,6 +406,13 @@ module usbuvcuart_top(
             ,.desc_strserial_addr_i (DESC_STRSERIAL_ADDR )
             ,.desc_strserial_len_i  (DESC_STRSERIAL_LEN  )
             ,.desc_have_strings_i   (DESCROM_HAVE_STRINGS)
+
+            ,.desc_bos_addr_i(16'd0)
+            ,.desc_bos_len_i(16'd0)
+            ,.desc_hidrpt_addr_i(16'd0)
+            ,.desc_hidrpt_len_i(16'd0)
+            ,.desc_index_o()
+            ,.desc_type_o()
 
             ,.utmi_dataout_o        (PHY_DATAOUT       )
             ,.utmi_txvalid_o        (PHY_TXVALID       )
@@ -419,419 +494,155 @@ module usbuvcuart_top(
         ,.usb_term_dn_io    (usb_term_dn_io)
     );
 
-    reg  [15:0] bmHint                  ;//short
-    reg  [ 7:0] bFormatIndex            ;//char
-    reg  [ 7:0] bFrameIndex             ;//char
-    reg  [31:0] dwFrameInterval         ;//int
-    reg  [15:0] wKeyFrameRate           ;//short
-    reg  [15:0] wPFrameRate             ;//short
-    reg  [15:0] wCompQuality            ;//short
-    reg  [15:0] wCompWindowSize         ;//short
-    reg  [15:0] wDelay                  ;//short
-    reg  [31:0] dwMaxVideoFrameSize     ;//int
-    reg  [31:0] dwMaxPayloadTransferSize;//int
-    reg  [31:0] dwClockFrequency        ;//int
-    reg  [ 7:0] bmFramingInfo           ;//char
-    reg  [ 7:0] bPreferedVersion        ;//char
-    reg  [ 7:0] bMinVersion             ;//char
-    reg  [ 7:0] bMaxVersion             ;//char
     reg  [ 7:0] bmRequestType; ///< Specifies direction of dataflow, type of rquest and recipient
     reg  [ 7:0] bRequest     ; ///< Specifies the request
     reg  [15:0] wValue       ; ///< Host can use this to pass info to the device in its own way
     reg  [15:0] wIndex       ; ///< Typically used to pass index/offset such as interface or EP no
     reg  [15:0] wLength      ; ///< Number of data bytes in the data stage (for Host -> Device this this is exact count, for Dev->Host is a max)
-    reg  [ 7:0] sub_stage    ;
-    reg  [ 7:0] stage        ;
 
 
-    localparam  SET_LINE_CODING = 8'h20;
-    localparam  GET_LINE_CODING = 8'h21;
-    localparam  SET_CONTROL_LINE_STATE = 8'h22;
-
-    reg [15:0]  s_ctl_sig;
-    reg [15:0]  s_interface_num;
-    reg [15:0]  s_set_len;
-    reg         s_uart1_en;
-    reg [31:0]  s_dte1_rate;
-    reg [7:0]   s_char1_format;
-    reg [7:0]   s_parity1_type;
-    reg [7:0]   s_data1_bits;
+    wire [ 1:0] s_ctl_sig;
+    wire [31:0] s_dte1_rate;
+    wire [ 7:0] s_char1_format;
+    wire [ 7:0] s_parity1_type;
+    wire [ 7:0] s_data1_bits;
 
     wire [31:0] uart_dte_rate = s_dte1_rate;
     wire [7:0]  uart_char_format = s_char1_format;
     wire [7:0]  uart_parity_type = s_parity1_type;
     wire [7:0]  uart_data_bits = s_data1_bits;
-    reg [7:0] lcc;
+
+    reg [2:0] hdr_len; /* Control header offset, also indicates header ready */
+    reg [15:0] cdata_ofs;
+    reg cdata_rxtx; /* Need to handle RX/TX after control request */
+    reg cdata_phase_active; /* data phase of control request is active */
+
+    wire header_ready = (hdr_len == 3'd7);
+
+    wire [15:0] clength = {usb_rxdat, wLength[7:0]};
+
     always @(posedge pClk)
         if (RESET_IN) begin
-            stage                    <= 8'd0;
-            sub_stage                <= 8'd0;
-            endpt0_send              <= 1'd0;
-            endpt0_dat               <= 8'd0;
-            bmRequestType            <= 8'd0;
-            bRequest                 <= 8'd0;
-            wValue                   <= 16'd0;
-            wIndex                   <= 16'd0;
-            wLength                  <= 16'd0;
-            bmHint                   <= 0;
-            bFormatIndex             <= 8'h01;
-            bFrameIndex              <= 8'h01;
-            dwFrameInterval          <= `FRAME_INTERVAL;
-            wKeyFrameRate            <= 0;
-            wPFrameRate              <= 0;
-            wCompQuality             <= 0;
-            wCompWindowSize          <= 0;
-            wDelay                   <= 0;
-            dwMaxVideoFrameSize      <= `MAX_FRAME_SIZE;
-            dwMaxPayloadTransferSize <= `PAYLOAD_SIZE;
-            dwClockFrequency         <= 60000000;
-            bmFramingInfo            <= 0;
-            bPreferedVersion         <= 0;
-            bMinVersion              <= 0;
-            bMaxVersion              <= 0;
-
-            s_interface_num          <= 16'd0;
-            s_ctl_sig                <= 16'd0;
-            s_dte1_rate              <= 32'd115200;
-            s_set_len                <= 16'd0;
-            s_uart1_en               <= 1'b0;
-            s_char1_format           <= 8'd0;
-            s_parity1_type           <= 8'd0;
-            s_data1_bits             <= 8'd8;
-            lcc                      <= 'd0;
-
+            hdr_len <= 0;
+            cdata_rxtx <= 0;
+            cdata_phase_active <= 0;
         end else begin
             if (setup_active) begin
                 if (usb_rxval) begin
-                    case (stage)
+                    if (~header_ready)
+                        hdr_len <= hdr_len + 3'd1;
+                    case (hdr_len)
                     8'd0 : begin
                         bmRequestType <= usb_rxdat;
-                        stage <= stage + 8'd1;
-                        sub_stage <= 8'd0;
-                        endpt0_send <= 1'd0;
+                        cdata_rxtx <= 0;
+                        cdata_phase_active <= 0;
+                        cdata_ofs <= 16'd0;
                     end
-                    8'd1 : begin
-                        bRequest <= usb_rxdat;
-                        stage <= stage + 8'd1;
-                    end
-                    8'd2 : begin
-                        if (bRequest == GET_LINE_CODING)
-                            lcc <= lcc + 1'd1;
-
-                        if (bRequest == SET_CONTROL_LINE_STATE) begin
-                            s_ctl_sig[7:0] <= usb_rxdat;
-                        end
-                        wValue[7:0] <= usb_rxdat;
-                        stage <= stage + 8'd1;
-                    end
-                    8'd3 : begin
-                        if (bRequest == SET_CONTROL_LINE_STATE) begin
-                            s_ctl_sig[15:8] <= usb_rxdat;
-                        end
-                        wValue[15:8] <= usb_rxdat;
-                        stage <= stage + 8'd1;
-                    end
-                    8'd4 : begin
-                        if (bRequest == SET_LINE_CODING) begin
-                            s_interface_num[7:0] <= usb_rxdat;
-                        end else if (bRequest == SET_CONTROL_LINE_STATE) begin
-                            s_interface_num[7:0] <= usb_rxdat;
-                        end
-
-                        stage <= stage + 8'd1;
-                        wIndex[7:0] <= usb_rxdat;
-                    end
-                    8'd5 : begin
-                        if (bRequest == SET_LINE_CODING) begin
-                            s_interface_num[15:8] <= usb_rxdat;
-                        end else if (bRequest == SET_CONTROL_LINE_STATE) begin
-                                s_interface_num[15:8] <= usb_rxdat;
-                        end
-
-                        stage <= stage + 8'd1;
-                        wIndex[15:8] <= usb_rxdat;
-                    end
-                    8'd6 : begin
-                        if (bRequest == SET_LINE_CODING) begin
-                            s_set_len[7:0] <= usb_rxdat;
-                        end else if (bRequest == GET_LINE_CODING) begin
-                            s_set_len[7:0] <= usb_rxdat;
-                            if (s_interface_num == EP_UART) begin
-                                endpt0_send <= 1'd1;
-                            end
-                        end else if (bRequest == SET_CONTROL_LINE_STATE) begin
-                            if (s_interface_num == EP_UART) begin
-                                s_uart1_en <= s_ctl_sig[0];
-                            end
-                        end
-
-                        if ((bRequest == `GET_CUR)
-                                || (bRequest == `GET_DEF)
-                                || (bRequest == `GET_MIN)
-                                || (bRequest == `GET_MAX)) begin
-                            if (wIndex[7:0] == 8'h01) begin //Video Steam Interface
-                                if (wValue[15:8] == `VS_PROBE_CONTROL) begin
-                                    endpt0_send <= 1'd1;
-                                end
-                            end
-                        end
-                        wLength[7:0] <= usb_rxdat;
-                        stage <= stage + 8'd1;
-                    end
-                    8'd7 :
-                    begin
-                        if (bRequest == SET_LINE_CODING) begin
-                            s_set_len[15:8] <= usb_rxdat;
-                        end else if (bRequest == GET_LINE_CODING) begin
-                            s_set_len[15:8] <= usb_rxdat;
-                            if (s_interface_num == EP_UART) begin
-                                endpt0_send <= 1'd1;
-                                endpt0_dat <= s_dte1_rate[7:0];
-                            end
-                        end
-
+                    8'd1 : bRequest <= usb_rxdat;
+                    8'd2 : wValue[7:0] <= usb_rxdat;
+                    8'd3 : wValue[15:8] <= usb_rxdat;
+                    8'd4 : wIndex[7:0] <= usb_rxdat;
+                    8'd5 : wIndex[15:8] <= usb_rxdat;
+                    8'd6 : wLength[7:0] <= usb_rxdat;
+                    8'd7 : begin
                         wLength[15:8] <= usb_rxdat;
-                        stage <= stage + 8'd1;
-                        sub_stage <= 8'd0;
+                        cdata_phase_active <= 1'b0;
+                        cdata_rxtx <= clength != 16'd0;
                     end
                     endcase
-                end // end if(usb_rxval)
-            end else // end if(setup_active)
-                if (bRequest == SET_LINE_CODING) begin
-                    stage <= 8'd0;
-                    if ((usb_rxact)&&(endpt_sel ==EP_CTRL)) begin
-                        if (usb_rxval) begin
-                            sub_stage <= sub_stage + 8'd1;
-                            if(s_interface_num == EP_UART) begin
-                                if (sub_stage <= 3)
-                                    s_dte1_rate <= {usb_rxdat,s_dte1_rate[31:8]};
-                                else if (sub_stage == 4)
-                                    s_char1_format <= usb_rxdat;
-                                else if (sub_stage == 5)
-                                    s_parity1_type <= usb_rxdat;
-                                else if (sub_stage == 6)
-                                    s_data1_bits <= usb_rxdat;
-                            end // end if(s_interface_num == EP_UART)
-                        end // end if(usb_rxval)
-                    end // end if(usb_rxact)&&(endpt_sel_ ==EP_CTRL)
-                // end if(bRequest == SET_LINE_CODING)
-                end else if (bRequest == GET_LINE_CODING) begin
-                    stage <= 8'd0;
-                    if ((endpt_sel == EP_CTRL)) begin
-                        if (endpt0_send == 1'b1) begin
-                            if (usb_txpop) begin
-                                sub_stage <= sub_stage + 8'd1;
-                            end
-                            if (bRequest == GET_LINE_CODING) begin
-                                if (usb_txpop) begin// new controller version
-                                    if (s_interface_num == EP_UART) begin
-                                        if (sub_stage <= 0)
-                                            endpt0_dat <= s_dte1_rate[15:8];
-                                        else if (sub_stage == 1)
-                                            endpt0_dat <= s_dte1_rate[23:16];
-                                        else if (sub_stage == 2)
-                                            endpt0_dat <= s_dte1_rate[31:24];
-                                        else if (sub_stage == 3)
-                                            endpt0_dat <= s_char1_format;
-                                        else if (sub_stage == 4)
-                                            endpt0_dat <= s_parity1_type;
-                                        else if (sub_stage == 5)
-                                            endpt0_dat <= s_data1_bits;
-                                        else
-                                            endpt0_send <= 1'b0;
-                                    end // end if(s_interface_num == EP_UART)
-                                end // end if(usb_txpop)
-                            end //  end if(bRequest == GET_LINE_CODING)
-                        end // end if(endpt0_send == 1'b1)
-                    end // end if((usb_txact)&&(endpt_sel ==EP_CTRL))
-                // end if(bRequest == GET_LINE_CODING)
-                end else if (bRequest == `SET_CUR) begin
-                    stage <= 8'd0;
-                    if (wIndex[7:0] == 8'h01) begin
-                        if (wValue[15:8] == `VS_PROBE_CONTROL) begin
-                            if ((usb_rxact) && (endpt_sel == EP_CTRL)) begin
-                                if (usb_rxval) begin
-                                    sub_stage <= sub_stage + 8'd1;
-                                    case (sub_stage)
-                                    8'd0 :
-                                        bmHint[7:0] <= usb_rxdat;
-                                    8'd1 :
-                                        bmHint[15:8] <= usb_rxdat;
-                                    8'd2 :
-                                        bFormatIndex[7:0] <= usb_rxdat;
-                                    8'd3 :
-                                        bFrameIndex[7:0] <= usb_rxdat;
-                                    8'd4 :
-                                        dwFrameInterval[7:0]  <= usb_rxdat;
-                                    8'd5 :
-                                        dwFrameInterval[15:8] <= usb_rxdat;
-                                    8'd6 :
-                                        dwFrameInterval[23:16] <= usb_rxdat;
-                                    8'd7 :
-                                        dwFrameInterval[31:24] <= usb_rxdat;
-                                    8'd8 :
-                                        wKeyFrameRate[7:0] <= usb_rxdat;
-                                    8'd9 :
-                                        wKeyFrameRate[15:8] <= usb_rxdat;
-                                    8'd10 :
-                                        wPFrameRate[7:0] <= usb_rxdat;
-                                    8'd11 :
-                                        wPFrameRate[15:8]<= usb_rxdat;
-                                    8'd12 :
-                                        wCompQuality[7:0] <= usb_rxdat;
-                                    8'd13 :
-                                        wCompQuality[15:8] <= usb_rxdat;
-                                    8'd14 :
-                                        wCompWindowSize[7:0] <= usb_rxdat;
-                                    8'd15 :
-                                        wCompWindowSize[15:8] <= usb_rxdat;
-                                    8'd16 :
-                                        wDelay[7:0] <= usb_rxdat;
-                                    8'd17 :
-                                        wDelay[15:8] <= usb_rxdat;
-                                    8'd18 :
-                                        dwMaxVideoFrameSize[7:0]  <= usb_rxdat;
-                                    8'd19 :
-                                        dwMaxVideoFrameSize[15:8] <= usb_rxdat;
-                                    8'd20 :
-                                        dwMaxVideoFrameSize[23:16] <= usb_rxdat;
-                                    8'd21 :
-                                        dwMaxVideoFrameSize[31:24] <= usb_rxdat;
-                                    8'd22 :
-                                        ;//dwMaxPayloadTransferSize[7:0]  <= usb_rxdat;
-                                    8'd23 :
-                                        ;//dwMaxPayloadTransferSize[15:8] <= usb_rxdat;
-                                    8'd24 :
-                                        ;//dwMaxPayloadTransferSize[23:16] <= usb_rxdat;
-                                    8'd25 :
-                                        ;//dwMaxPayloadTransferSize[31:24] <= usb_rxdat;
-                                    8'd26 :
-                                        dwClockFrequency[7:0]  <= usb_rxdat;
-                                    8'd27 :
-                                        dwClockFrequency[15:8] <= usb_rxdat;
-                                    8'd28 :
-                                        dwClockFrequency[23:16] <= usb_rxdat;
-                                    8'd29 :
-                                        dwClockFrequency[31:24] <= usb_rxdat;
-                                    8'd30 :
-                                        bmFramingInfo[7:0] <= usb_rxdat;
-                                    8'd31 :
-                                        bPreferedVersion[7:0] <= usb_rxdat;
-                                    8'd32 :
-                                        bMinVersion[7:0] <= usb_rxdat;
-                                    8'd33 :
-                                        bMaxVersion[7:0] <= usb_rxdat;
-                                    default : ;
-                                    endcase
-                                end // if(usb_rxval)
-                            // if ((usb_rxact)&&(endpt_sel == EP_CTRL))
-                            end else begin
-                                sub_stage <= 8'd0;
-                            end
-                        end //if (wValue[15:8] == `VS_PROBE_CONTROL)
-                    end // if (wIndex[7:0] == 8'h01)
-                // if(bRequest == `SET_CUR)
-                end else if ((bRequest == `GET_CUR)
-                            || (bRequest == `GET_DEF)
-                            || (bRequest == `GET_MIN)
-                            || (bRequest == `GET_MAX)) begin
-                    stage <= 8'd0;
-                    if (wIndex[7:0] == 8'h01) begin
-                        if (wValue[15:8] == `VS_PROBE_CONTROL) begin
-                            if ((usb_txact) && (endpt_sel == EP_CTRL)) begin
-                                if (endpt0_send == 1'b1) begin
-                                    if (usb_txpop) begin
-                                        sub_stage <= sub_stage + 8'd1;
-                                        if (sub_stage == 8'd33) begin
-                                            endpt0_send <= 1'd0;
-                                        end
-                                        case (sub_stage)
-                                        8'd0 :
-                                            endpt0_dat <= bmHint[15:8];
-                                        8'd1 :
-                                            endpt0_dat <= bFormatIndex[7:0];
-                                        8'd2 :
-                                            endpt0_dat <= bFrameIndex[7:0];
-                                        8'd3 :
-                                            endpt0_dat <= dwFrameInterval[7:0];
-                                        8'd4 :
-                                            endpt0_dat <= dwFrameInterval[15:8];
-                                        8'd5 :
-                                            endpt0_dat <= dwFrameInterval[23:16];
-                                        8'd6 :
-                                            endpt0_dat <= dwFrameInterval[31:24];
-                                        8'd7 :
-                                            endpt0_dat <= wKeyFrameRate[7:0];
-                                        8'd8 :
-                                            endpt0_dat <= wKeyFrameRate[15:8];
-                                        8'd9 :
-                                            endpt0_dat <= wPFrameRate[7:0];
-                                        8'd10 :
-                                            endpt0_dat <= wPFrameRate[15:8];
-                                        8'd11 :
-                                            endpt0_dat <= wCompQuality[7:0];
-                                        8'd12 :
-                                            endpt0_dat <= wCompQuality[15:8];
-                                        8'd13 :
-                                            endpt0_dat <= wCompWindowSize[7:0];
-                                        8'd14 :
-                                            endpt0_dat <= wCompWindowSize[15:8];
-                                        8'd15 :
-                                            endpt0_dat <= wDelay[7:0];
-                                        8'd16 :
-                                            endpt0_dat <= wDelay[15:8];
-                                        8'd17 :
-                                            endpt0_dat <= dwMaxVideoFrameSize[7:0];
-                                        8'd18 :
-                                            endpt0_dat <= dwMaxVideoFrameSize[15:8];
-                                        8'd19 :
-                                            endpt0_dat <= dwMaxVideoFrameSize[23:16];
-                                        8'd20 :
-                                            endpt0_dat <= dwMaxVideoFrameSize[31:24];
-                                        8'd21 :
-                                            endpt0_dat <= dwMaxPayloadTransferSize[7:0];
-                                        8'd22 :
-                                            endpt0_dat <= dwMaxPayloadTransferSize[15:8];
-                                        8'd23 :
-                                            endpt0_dat <= dwMaxPayloadTransferSize[23:16];
-                                        8'd24 :
-                                            endpt0_dat <= dwMaxPayloadTransferSize[31:24];
-                                        8'd25 :
-                                            endpt0_dat <= dwClockFrequency[7:0];
-                                        8'd26 :
-                                            endpt0_dat <= dwClockFrequency[15:8];
-                                        8'd27 :
-                                            endpt0_dat <= dwClockFrequency[23:16];
-                                        8'd28 :
-                                            endpt0_dat <= dwClockFrequency[31:24];
-                                        8'd29 :
-                                            endpt0_dat <= bmFramingInfo[7:0];
-                                        8'd30 :
-                                            endpt0_dat <= bPreferedVersion[7:0];
-                                        8'd31 :
-                                            endpt0_dat <= bMinVersion[7:0];
-                                        8'd32 :
-                                            endpt0_dat <=  bMaxVersion[7:0];
-                                        default : ;
-                                        endcase
-                                    // if(usb_txpop)
-                                    end else if (sub_stage == 8'd0) begin
-                                        endpt0_dat <= bmHint[7:0];
-                                    end
-                                end //(endpt0_send == 1'b1)
-                            //if ((usb_txact)&&(endpt_sel == EP_CTRL))
-                            end else begin
-                                sub_stage <= 8'd0;
-                            end
-                        end //if (wValue[15:8] == `VS_PROBE_CONTROL)
-                    end //if (wIndex[7:0] == 8'h01)
-                // if ((bRequest == `GET_CUR)||(bRequest == `GET_DEF))
-                //||(bRequest == `GET_MIN)||(bRequest == `GET_MAX))
-                end else begin
-                    stage <= 8'd0;
-                    sub_stage <= 8'd0;
                 end
+            end else if (header_ready && (endpt_sel == EP_CTRL)) begin
+                if (cdata_rxtx) begin
+                    if ((usb_rxact && usb_rxval)
+                            || (usb_txact && usb_txpop)) begin
+                        cdata_ofs <= cdata_ofs + 16'd1;
+                    end
+                    if (usb_rxact || usb_txact) begin
+                        cdata_phase_active <= 1'b1;
+                    end else if (cdata_phase_active) begin
+                        cdata_phase_active <= 1'b0;
+                        cdata_rxtx <= 1'b0;
+                        hdr_len <= 3'd0;
+                    end
+                end else
+                    hdr_len <= 3'd0;
+            end
         end // if (~RESET_IN)
+
+    ctrl_uart uart_if_ctrl(
+        .RESET_IN(RESET_IN),
+        .pClk(pClk),
+        .header_ready(header_ready),
+        .bmRequestType(bmRequestType),
+        .bRequest(bRequest),
+        .wValue(wValue),
+        .wIndex(wIndex),
+        .wLength(wLength),
+        .cdata_ofs(cdata_ofs),
+        .usb_rxdat(usb_rxdat),
+        .usb_rxact(usb_rxact),
+        .usb_rxval(usb_rxval),
+        .usb_txpop(usb_txpop),
+        .usb_txval(cuart_txval),
+        .usb_txdat_len(cuart_txdat_len),
+        .usb_txdat(cuart_txdat),
+        .s_ctl_sig(s_ctl_sig),
+        .s_dte1_rate(s_dte1_rate),
+        .s_char1_format(s_char1_format),
+        .s_parity1_type(s_parity1_type),
+        .s_data1_bits(s_data1_bits));
+
+    ctrl_uvc uvc_if_ctrl(
+        .RESET_IN(RESET_IN),
+        .pClk(pClk),
+        .header_ready(header_ready),
+        .bmRequestType(bmRequestType),
+        .bRequest(bRequest),
+        .wValue(wValue),
+        .wIndex(wIndex),
+        .wLength(wLength),
+        .cdata_ofs(cdata_ofs),
+        .usb_rxdat(usb_rxdat),
+        .usb_rxact(usb_rxact),
+        .usb_rxval(usb_rxval),
+        .usb_txpop(usb_txpop),
+        .usb_txval(cuvc_txval),
+        .usb_txdat_len(cuvc_txdat_len),
+        .usb_txdat(cuvc_txdat),
+        .bmHint(),
+        .bFormatIndex(),
+        .bFrameIndex(),
+        .dwFrameInterval(),
+        .wKeyFrameRate(),
+        .wPFrameRate(),
+        .wCompQuality(),
+        .wCompWindowSize(),
+        .wDelay(),
+        .dwMaxVideoFrameSize(),
+        .dwMaxPayloadTransferSize(),
+        .dwClockFrequency(),
+        .bmFramingInfo(),
+        .bPreferedVersion(),
+        .bMinVersion(),
+        .bMaxVersion());
+
+    ctrl_uac uac_if_ctrl(
+        .RESET_IN(RESET_IN),
+        .pClk(pClk),
+        .header_ready(header_ready),
+        .bmRequestType(bmRequestType),
+        .bRequest(bRequest),
+        .wValue(wValue),
+        .wIndex(wIndex),
+        .wLength(wLength),
+        .cdata_ofs(cdata_ofs),
+        .usb_rxdat(usb_rxdat),
+        .usb_rxact(usb_rxact),
+        .usb_rxval(usb_rxval),
+        .usb_txpop(usb_txpop),
+        .usb_txval(cuac_txval),
+        .usb_txdat_len(cuac_txdat_len),
+        .usb_txdat(cuac_txdat));
 
     reg [3:0] pState;
 
@@ -845,6 +656,12 @@ module usbuvcuart_top(
     reg pLastReadActive;
     reg pReadActive;
 
+    parameter PACKET_SIZE       = `PACKET_SIZE;
+    localparam HEADER_SIZE      = 11'd12;
+    localparam PACKET_PAYLOAD   = PACKET_SIZE - HEADER_SIZE;
+    parameter WIDTH             = `WIDTH;
+    parameter HEIGHT            = `HEIGHT;
+
     always @(posedge pClk) begin
         if(RESET_IN)
             pState <= IDLE;
@@ -857,7 +674,7 @@ module usbuvcuart_top(
                 pLastReadActive <= 1'd0;
                 pReadActive <= 1;
             end else if (pLastPacket) begin
-                video_txdat_len <= uvc_fifo_rnum + HEADER_SIZE;
+                video_txdat_len <= uvc_fifo_rnum[11:0] + HEADER_SIZE;
                 pLastReadActive <= 1'd1;
                 pReadActive <= 1;
             end else begin
@@ -892,12 +709,6 @@ module usbuvcuart_top(
     reg [31:0] pts_reg;
     reg [7:0] pFrame;
     wire EOF = 1'd0;
-
-    parameter PACKET_SIZE       = `PACKET_SIZE;
-    localparam HEADER_SIZE      = 11'd12;
-    localparam PACKET_PAYLOAD   = PACKET_SIZE - HEADER_SIZE;
-    parameter WIDTH             = `WIDTH;
-    parameter HEIGHT            = `HEIGHT;
 
     always @(posedge pClk)
         if(RESET_IN) begin
@@ -976,7 +787,7 @@ module usbuvcuart_top(
                     hCountX <= hCountX + 1'd1;
             end else begin
                 if (yEnable_r1) begin
-                    hCountY <= hCountY + 'd1;
+                    hCountY <= hCountY + 1'd1;
                     if(hCountY == (HEIGHT - 1))
                         hImage_eof <= 1'd1;
                     hCountX <= 'd0;
@@ -1091,7 +902,6 @@ module usbuvcuart_top(
 
     reg sof_d0;
     reg sof_d1;
-    wire sof_rise;
     always @(posedge pClk) begin
         if (RESET_IN) begin
             sof_d0 <= 1'b0;
@@ -1229,6 +1039,26 @@ module delay(input rst, input clk, input in, output out);
 
 endmodule
 
+module interface_alt_select(
+    input RESET_IN,
+    input pClk,
+    input interface_update,
+    input [7:0] interface_alter_i,
+    output [7:0] interface_alter_o);
+
+    reg [7:0] interface_alt_sel;
+
+    assign interface_alter_o = interface_alt_sel;
+
+    always @(posedge pClk) begin
+        if (RESET_IN) begin
+            interface_alt_sel <= 8'd0;
+        end else if (interface_update) begin
+            interface_alt_sel <= interface_alter_i;
+        end
+    end
+endmodule
+
 module rgb_to_ycbcr_pipeline(
     input rst,
     input hClk,
@@ -1264,4 +1094,461 @@ module rgb_to_ycbcr_pipeline(
         .O_doutvalid(yEnable) //output O_doutvalid
         );
 
+endmodule
+
+module ctrl_uart(
+    input RESET_IN,
+    input pClk,
+    input header_ready,
+    input [7:0] bmRequestType,
+    input [7:0] bRequest,
+    input [15:0] wValue,
+    input [15:0] wIndex,
+    input [15:0] wLength,
+    input [15:0] cdata_ofs,
+    input [7:0] usb_rxdat,
+    input usb_rxact,
+    input usb_rxval,
+    input usb_txpop,
+    output reg usb_txval,
+    output reg [11:0] usb_txdat_len,
+    output reg [7:0] usb_txdat,
+    output reg [1:0]  s_ctl_sig,
+    output reg [31:0] s_dte1_rate,
+    output reg [7:0]  s_char1_format,
+    output reg [7:0]  s_parity1_type,
+    output reg [7:0]  s_data1_bits
+);
+
+    localparam  SET_LINE_CODING = 8'h20;
+    localparam  GET_LINE_CODING = 8'h21;
+    localparam  SET_CONTROL_LINE_STATE = 8'h22;
+
+    always @(posedge pClk)
+        if (RESET_IN) begin
+            usb_txval <= 1'd0;
+            s_ctl_sig <= 2'd0;
+            s_dte1_rate <= 32'd115200;
+            s_char1_format <= 8'd0;
+            s_parity1_type <= 8'd0;
+            s_data1_bits <= 8'd8;
+        end else if ((header_ready) && (wIndex == {8'd0, `UART_CTRL_IFACE})) begin
+            if (bmRequestType == 8'h21) begin /* Set requests */
+                if ((bRequest == SET_CONTROL_LINE_STATE) && (wLength == 0)) begin
+                    s_ctl_sig[1:0] <= wValue[1:0];
+                end else if (usb_rxact && (bRequest == SET_LINE_CODING)
+                            && (wLength == 7)) begin
+                    case (cdata_ofs)
+                    16'd0: s_dte1_rate[7:0] <= usb_rxdat;
+                    16'd1: s_dte1_rate[15:8] <= usb_rxdat;
+                    16'd2: s_dte1_rate[23:16] <= usb_rxdat;
+                    16'd3: s_dte1_rate[31:24] <= usb_rxdat;
+                    16'd4: s_char1_format[7:0] <= usb_rxdat;
+                    16'd5: s_parity1_type[7:0] <= usb_rxdat;
+                    16'd6: s_data1_bits[7:0] <= usb_rxdat;
+                    endcase
+                end
+            end else if (bmRequestType == 8'hA1) begin /* Get Resquests */
+                if ((bRequest == GET_LINE_CODING) && (wLength != 0)) begin
+                    if (usb_txpop) begin
+                        case (cdata_ofs)
+                        16'd0: usb_txdat <= s_dte1_rate[15:8];
+                        16'd1: usb_txdat <= s_dte1_rate[23:16];
+                        16'd2: usb_txdat <= s_dte1_rate[31:24];
+                        16'd3: usb_txdat <= s_char1_format;
+                        16'd4: usb_txdat <= s_parity1_type;
+                        16'd5: usb_txdat <= s_data1_bits;
+                        16'd6: usb_txdat <= 8'd0;
+                        endcase
+                        if ((usb_txdat_len - 16'd1) == cdata_ofs)
+                            usb_txval <= 1'd0;
+                    end else begin
+                        if (cdata_ofs == 16'd0) begin
+                            usb_txval <= 1;
+                            usb_txdat_len <= wLength[11:0];
+                            usb_txdat <= s_dte1_rate[7:0];
+                        end
+                    end
+                end
+            end
+        end
+endmodule
+
+module ctrl_uvc(
+    input RESET_IN,
+    input pClk,
+    input header_ready,
+    input [ 7:0] bmRequestType,
+    input [ 7:0] bRequest,
+    input [15:0] wValue,
+    input [15:0] wIndex,
+    input [15:0] wLength,
+    input [15:0] cdata_ofs,
+    input [ 7:0] usb_rxdat,
+    input usb_rxact,
+    input usb_rxval,
+    input usb_txpop,
+    output reg  usb_txval,
+    output reg  [11:0] usb_txdat_len,
+    output reg  [ 7:0] usb_txdat,
+    output reg  [15:0] bmHint,
+    output reg  [ 7:0] bFormatIndex,
+    output reg  [ 7:0] bFrameIndex,
+    output reg  [31:0] dwFrameInterval,
+    output reg  [15:0] wKeyFrameRate,
+    output reg  [15:0] wPFrameRate,
+    output reg  [15:0] wCompQuality,
+    output reg  [15:0] wCompWindowSize,
+    output reg  [15:0] wDelay,
+    output reg  [31:0] dwMaxVideoFrameSize,
+    output reg  [31:0] dwMaxPayloadTransferSize,
+    output reg  [31:0] dwClockFrequency,
+    output reg  [ 7:0] bmFramingInfo,
+    output reg  [ 7:0] bPreferedVersion,
+    output reg  [ 7:0] bMinVersion,
+    output reg  [ 7:0] bMaxVersion
+);
+
+    always @(posedge pClk)
+        if (RESET_IN) begin
+            usb_txval <= 1'd0;
+            bmHint                   <= 0;
+            bFormatIndex             <= 8'h01;
+            bFrameIndex              <= 8'h01;
+            dwFrameInterval          <= `FRAME_INTERVAL;
+            wKeyFrameRate            <= 0;
+            wPFrameRate              <= 0;
+            wCompQuality             <= 0;
+            wCompWindowSize          <= 0;
+            wDelay                   <= 0;
+            dwMaxVideoFrameSize      <= `MAX_FRAME_SIZE;
+            dwMaxPayloadTransferSize <= `PAYLOAD_SIZE;
+            dwClockFrequency         <= 60000000;
+            bmFramingInfo            <= 0;
+            bPreferedVersion         <= 0;
+            bMinVersion              <= 0;
+            bMaxVersion              <= 0;
+        end else if ((header_ready) &&
+                    (wIndex == `UVC_VS_INTERFACE)) begin
+            /* Ignore set requests */
+            if (bmRequestType == 8'hA1) begin /* Get Resquests */
+                /* wLength == 16'd34
+                 * Accept any length > 0, either truncate or pad with zeroes */
+                if ((wLength != 0) && (wValue[15:8] == `VS_PROBE_CONTROL)
+                            &&((bRequest == `GET_CUR)
+                            || (bRequest == `GET_DEF)
+                            || (bRequest == `GET_MIN)
+                            || (bRequest == `GET_MAX))) begin
+                    if (usb_txpop) begin
+                        case (cdata_ofs)
+                        16'd0: usb_txdat <= bmHint[15:8];
+                        16'd1: usb_txdat <= bFormatIndex[7:0];
+                        16'd2: usb_txdat <= bFrameIndex[7:0];
+                        16'd3: usb_txdat <= dwFrameInterval[7:0];
+                        16'd4: usb_txdat <= dwFrameInterval[15:8];
+                        16'd5: usb_txdat <= dwFrameInterval[23:16];
+                        16'd6: usb_txdat <= dwFrameInterval[31:24];
+                        16'd7: usb_txdat <= wKeyFrameRate[7:0];
+                        16'd8: usb_txdat <= wKeyFrameRate[15:8];
+                        16'd9: usb_txdat <= wPFrameRate[7:0];
+                        16'd10: usb_txdat <= wPFrameRate[15:8];
+                        16'd11: usb_txdat <= wCompQuality[7:0];
+                        16'd12: usb_txdat <= wCompQuality[15:8];
+                        16'd13: usb_txdat <= wCompWindowSize[7:0];
+                        16'd14: usb_txdat <= wCompWindowSize[15:8];
+                        16'd15: usb_txdat <= wDelay[7:0];
+                        16'd16: usb_txdat <= wDelay[15:8];
+                        16'd17: usb_txdat <= dwMaxVideoFrameSize[7:0];
+                        16'd18: usb_txdat <= dwMaxVideoFrameSize[15:8];
+                        16'd19: usb_txdat <= dwMaxVideoFrameSize[23:16];
+                        16'd20: usb_txdat <= dwMaxVideoFrameSize[31:24];
+                        16'd21: usb_txdat <= dwMaxPayloadTransferSize[7:0];
+                        16'd22: usb_txdat <= dwMaxPayloadTransferSize[15:8];
+                        16'd23: usb_txdat <= dwMaxPayloadTransferSize[23:16];
+                        16'd24: usb_txdat <= dwMaxPayloadTransferSize[31:24];
+                        16'd25: usb_txdat <= dwClockFrequency[7:0];
+                        16'd26: usb_txdat <= dwClockFrequency[15:8];
+                        16'd27: usb_txdat <= dwClockFrequency[23:16];
+                        16'd28: usb_txdat <= dwClockFrequency[31:24];
+                        16'd29: usb_txdat <= bmFramingInfo[7:0];
+                        16'd30: usb_txdat <= bPreferedVersion[7:0];
+                        16'd31: usb_txdat <= bMinVersion[7:0];
+                        16'd32: usb_txdat <=  bMaxVersion[7:0];
+                        default: usb_txdat <= 0;
+                        endcase
+                        if ((usb_txdat_len - 16'd1) == cdata_ofs)
+                            usb_txval <= 1'd0;
+                    end else if (cdata_ofs == 16'd0) begin
+                        /* initial setup */
+                        usb_txval <= 1'd1;
+                        usb_txdat_len <= wLength < 16'd34
+                                            ? wLength[11:0] : 16'd34;
+                        usb_txdat <= bmHint[7:0];
+                    end
+                end
+            end
+        end
+endmodule
+
+module ctrl_uac(
+    input RESET_IN,
+    input pClk,
+    input header_ready,
+    input [7:0] bmRequestType,
+    input [7:0] bRequest,
+    input [15:0] wValue,
+    input [15:0] wIndex,
+    input [15:0] wLength,
+    input [15:0] cdata_ofs,
+    input [7:0] usb_rxdat,
+    input usb_rxact,
+    input usb_rxval,
+    input usb_txpop,
+    output reg usb_txval,
+    output reg [11:0] usb_txdat_len,
+    output reg [ 7:0] usb_txdat);
+
+    always @(posedge pClk)
+        if (RESET_IN) begin
+            usb_txval <= 1'd0;
+        end else if ((header_ready) && (wIndex[7:0] == `UAC_AC_INTERFACE)) begin
+            /* Ignore set requests */
+            if ((bmRequestType == 8'hA1) && (wLength != 0)) begin
+                /* Get Resquests */
+                if ((wValue[7:0] == 0)
+                        && (wValue[15:8] == `CS_SAM_FREQ_CONTROL)
+                        && (wIndex[15:8] == `UAC_CLOCK_ID)) begin
+                    if ((bRequest == `UAC_CUR_ATTR)
+                            && (wLength != 16'd0)) begin
+                        if (usb_txpop) begin
+                            case (cdata_ofs)
+                            16'd0: usb_txdat <= {`UAC_FREQUENCY}[15:8];
+                            16'd1: usb_txdat <= {`UAC_FREQUENCY}[23:16];
+                            16'd2: usb_txdat <= {`UAC_FREQUENCY}[31:24];
+                            default: usb_txdat <= 8'd0;
+                            endcase
+                        end else if (cdata_ofs == 16'd0) begin
+                            usb_txval <= 1'd1;
+                            usb_txdat_len <= wLength < 4 ? wLength[11:0] : 12'd4;
+                            usb_txdat <= {`UAC_FREQUENCY}[7:0];
+                        end
+                    end else if (bRequest == `UAC_RANGE_ATTR) begin
+                        if (usb_txpop) begin
+                            case (cdata_ofs)
+                            /* Number of ranges: 1, high byte */
+                            16'd0: usb_txdat <= 8'h00;
+                            /* RANGE.MIN = UAC_FREQUENCY */
+                            16'd1: usb_txdat <= {`UAC_FREQUENCY}[7:0];
+                            16'd2: usb_txdat <= {`UAC_FREQUENCY}[15:8];
+                            16'd3: usb_txdat <= {`UAC_FREQUENCY}[23:16];
+                            16'd4: usb_txdat <= {`UAC_FREQUENCY}[31:24];
+                            /* RANGE.MAX = UAC_FREQUENCY */
+                            16'd5: usb_txdat <= {`UAC_FREQUENCY}[7:0];
+                            16'd6: usb_txdat <= {`UAC_FREQUENCY}[15:8];
+                            16'd7: usb_txdat <= {`UAC_FREQUENCY}[23:16];
+                            16'd8: usb_txdat <= {`UAC_FREQUENCY}[31:24];
+                            /* RANGE.RES = 1 */
+                            16'd9: usb_txdat <= 8'h00;
+                            16'd10: usb_txdat <= 8'h00;
+                            16'd11: usb_txdat <= 8'h00;
+                            16'd12: usb_txdat <= 8'h00;
+                            default: usb_txdat <= 8'd0;
+                            endcase
+                        end else if (cdata_ofs == 16'd0) begin
+                            usb_txval <= 1'd1;
+                            usb_txdat_len <= wLength < 14 ? wLength[11:0] : 12'd14; /* length */
+                            /* Number of ranges: 1, low byte */
+                            usb_txdat <= 8'h01;
+                        end
+                    end
+                    if (usb_txpop && usb_txval
+                            && ((usb_txdat_len - 16'd1) == cdata_ofs))
+                        usb_txval <= 1'd0;
+                end
+            end
+        end
+endmodule
+
+module usbuac_ep(
+    input rst,
+    input pClk,
+    input usb_sof_rise,
+    input gClk,
+    input [15:0] left,
+    input [15:0] right,
+    input uac_txpop,
+    input uac_txact,
+    output reg [7:0] uac_txdat,
+    output reg [11:0] uac_txdat_len,
+    output reg uac_txcork);
+
+    /* 2 bytes per ch, 2 ch, 6 smaples per microframe */
+    localparam ASFREQ = 44100;
+    localparam CH = 2;
+    localparam BITS_PER_SUBSAMPLE = 16;
+    localparam AFREQ = ASFREQ * BITS_PER_SUBSAMPLE * CH;
+    localparam SAMPLES_PER_MFRAME = (ASFREQ + 7999)/8000;
+    localparam MAXBUFFER = BITS_PER_SUBSAMPLE * CH * SAMPLES_PER_MFRAME / 8;
+
+    reg write_to; /* mem area that is currently written to */
+    //reg [MAXBUFFER - 1:0][7:0] mem0;
+    //reg [MAXBUFFER - 1:0][7:0] mem1;
+    reg [MAXBUFFER*8 - 1:0] mem0;
+    reg [MAXBUFFER*8 - 1:0] mem1;
+    reg [11:0] write_ptr0;
+    reg [11:0] write_ptr1;
+
+    reg [3:0] pState;
+
+    localparam IDLE = 4'd1; //Wait for usb_sof
+    localparam UNCORK = 4'd2; //Ready for TX (waiting txact)
+    localparam TXACTIVE = 4'd4; //TX in progress (waiting ~txact)
+
+    reg store_state;
+    reg switch_active;
+    reg switch_complete;
+
+    always @(posedge pClk) begin
+        if (rst)
+            pState <= IDLE;
+        else if (usb_sof_rise) begin
+            pState <= UNCORK;
+        end else if (uac_txact && (pState == UNCORK)) begin
+            pState <= TXACTIVE;
+        end else if (~uac_txact && (pState == TXACTIVE)) begin
+            pState <= IDLE;
+        end
+    end
+
+    wire [31:0] sample;
+    wire sample_ready;
+    sample_get_p usb_sam(
+        .pClk(pClk),
+        .gClk(gClk),
+        .left(left),
+        .right(right),
+        .sample(sample),
+        .ready(sample_ready));
+
+    reg p_sample_ready;
+
+    always@(posedge pClk) begin
+        if (usb_sof_rise) begin
+            switch_active <= 1;
+        end
+        p_sample_ready <= sample_ready;
+        if (sample_ready & ~p_sample_ready) begin
+            store_state <= 1'b1;
+        end
+        switch_complete <= 0;
+        if (store_state) begin
+            if (write_ptr0 != MAXBUFFER) begin
+                mem0 <= {sample, mem0[MAXBUFFER*8 - 1:32]};
+                write_ptr0 <= write_ptr0 + 12'd4;
+            end
+            store_state <= 1'b0;
+        end else begin
+            if (switch_active) begin
+                write_ptr1 <= write_ptr0;
+                if (write_ptr0 != MAXBUFFER)
+                    mem1 <= {32'd0, mem0[MAXBUFFER*8 - 1:32]};
+                else
+                    mem1 <= mem0;
+                write_ptr0 <= 12'd0;
+                switch_active <= 0;
+                switch_complete <= 1;
+            end
+        end
+        if(switch_complete) begin
+            uac_txdat <= mem1[7:0];
+            mem1 <= {8'd0, mem1[MAXBUFFER*8 - 1:8]};
+            uac_txdat_len <= (write_ptr1 >= MAXBUFFER - 4) ? write_ptr1 : 0;
+            uac_txcork <= 1'b0;
+        end else if (uac_txpop) begin
+            uac_txdat <= mem1[7:0];
+            mem1 <= {8'd0, mem1[MAXBUFFER*8 - 1:8]};
+        end
+    end
+endmodule
+
+module audioclk_gen(input pClk, input reset, output bclk, output aclk);
+    parameter BASE_FREQ = 60000000;
+    parameter FREQ_SUM = BASE_FREQ / 2;
+    parameter AFREQ = 44100;
+    parameter BFREQ = AFREQ * 32;
+
+    reg [31:0] count;
+    reg [4:0] acount;
+    reg bclkin;
+
+    always @(posedge pClk or posedge reset) begin
+        if (reset) begin
+            count <= 32'd0;
+            acount <= 6'd0;
+            bclkin <= 0;
+        end else begin
+            if (count < FREQ_SUM)
+                count <= count + BFREQ;
+            else begin
+                count <= count - FREQ_SUM + BFREQ;
+                bclkin <= ~bclkin;
+                if (~bclkin)
+                    acount <= acount + 5'd1;
+            end
+        end
+    end
+
+    assign bclk = bclkin;
+    assign aclk = (acount[4] == 0);
+endmodule
+
+module sync_audio(
+    input gClk,
+    input pClk,
+    input [15:0] left,
+    input [15:0] right,
+    output [31:0] p_sample);
+
+    reg [31:0] sample;
+
+    delay #(.DELAY(2)) sync_g(1'b0, pClk, gClk, g_rdy);
+
+    reg g_prdy;
+
+    always @(posedge pClk) begin
+        g_prdy <= g_rdy;
+        if (~g_prdy && g_rdy) begin
+            sample <= {right, left};
+        end
+    end
+    assign p_sample = sample;
+endmodule
+
+module sample_get_p(
+    input pClk,
+    input gClk,
+    input [15:0] left,
+    input [15:0] right,
+    output reg [31:0] sample,
+    output reg ready);
+
+    wire [31:0] s;
+    wire aclk;
+
+    /* aclk is synchronized to pClk */
+    audioclk_gen g_ab(.pClk(pClk), .reset(1'b0), .bclk(), .aclk(aclk));
+
+    sync_audio sa(
+        .gClk(gClk),
+        .pClk(pClk),
+        .left(left),
+        .right(right),
+        .p_sample(s));
+
+    always @(posedge pClk) begin
+        if (~ready & aclk) begin
+            sample <= s;
+        end
+        ready <= aclk;
+    end
 endmodule

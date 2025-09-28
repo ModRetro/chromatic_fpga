@@ -30,6 +30,8 @@ module videoBypass (
 
     input  boot_rom_en,
     input  paletteOff,
+    input customPaletteEna,
+    input [63:0] paletteBGIn,
 
     // cpu register adn oam interface
     input  cpu_sel_oam,
@@ -597,7 +599,20 @@ always @(posedge clk) begin
     end
 end
 
-assign lcd_data = (isGBC_mode || ~paletteOff) ? 15'h7FFF : { bgpd[1][6:0],bgpd[0] };
+wire [7:0] paletteCustomBG [7:0];
+assign paletteCustomBG[0] = paletteBGIn[ 7: 0];
+assign paletteCustomBG[1] = paletteBGIn[15: 8];
+assign paletteCustomBG[2] = paletteBGIn[23:16];
+assign paletteCustomBG[3] = paletteBGIn[31:24];
+assign paletteCustomBG[4] = paletteBGIn[39:32];
+assign paletteCustomBG[5] = paletteBGIn[47:40];
+assign paletteCustomBG[6] = paletteBGIn[55:48];
+assign paletteCustomBG[7] = paletteBGIn[63:56];
+
+assign lcd_data = (isGBC_mode || ~paletteOff) ? 15'h7FFF : 
+                  (customPaletteEna && ~isGBC_mode) ? { paletteCustomBG[1][6:0],paletteCustomBG[0] } :
+                  { bgpd[1][6:0],bgpd[0] };
+                  
 assign lcd_clkena = lcd_clk_out;
 
 endmodule

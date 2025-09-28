@@ -29,6 +29,11 @@ module gb (
     input isGBC,
     input real_cgb_boot,
     input paletteOff,
+    input customPaletteEna,
+    input [63:0] paletteBGIn,
+    input [63:0] paletteOBJIn,
+    output gbc_mode,
+    output [63:0] bgpd,
 
     // cartridge interface
     // can adress up to 1MB ROM
@@ -423,6 +428,7 @@ CODES codes (
 // --------------------------------------------------------------------
 
 assign SS_Top_BACK[56:55] = ff4c_key0;
+assign gbc_mode = isGBC_mode;
 
 // KEY0 FF4C CPU mode register
 // Bits 2 and 3 CPU mode select
@@ -771,6 +777,10 @@ video video (
     .megaduck    ( megaduck      ),
 
     .boot_rom_en ( boot_rom_enabled ),
+    .customPaletteEna ( customPaletteEna ),
+    .paletteBGIn      ( paletteBGIn ),
+    .paletteOBJIn     ( paletteOBJIn ),
+    .bgpd_out         ( bgpd     ),
 
     .irq         ( video_irq     ),
     .vblank_irq  ( vblank_irq    ),
@@ -826,6 +836,8 @@ videoBypass videoBypass (
 
     .boot_rom_en ( boot_rom_enabled ),
     .paletteOff ( paletteOff ),
+    .customPaletteEna ( customPaletteEna ),
+    .paletteBGIn      ( paletteBGIn ),
 
     .cpu_sel_reg ( sel_video_reg ),
     .cpu_sel_oam ( sel_video_oam ),

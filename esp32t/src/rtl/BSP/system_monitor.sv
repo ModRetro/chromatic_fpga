@@ -35,6 +35,10 @@ module system_monitor(
     output  reg         LED_White,
     output  reg [15:0]  system_control,
     output  reg [31:0]  debug_system,
+    output  reg [63:0]  paletteBGIn,
+    output  reg [63:0]  paletteOBJIn,
+    input               gbc_mode,
+    input   [63:0]      bgpd,
     input   [7:0]       uart_rx_data,
     input               uart_rx_val,
     input               uart_tx_busy,
@@ -82,6 +86,7 @@ module system_monitor(
     reg request_buttons  = 1'b0;
     reg request_version  = 1'b0;
     reg updateBrightness = 1'b0;
+    reg request_bgpd     = 1'b0;
     
     reg lowpowerBacklight = 1'b0;
     reg [3:0] lowerpowerOldBL;
@@ -94,7 +99,8 @@ module system_monitor(
     begin
         if(reset) begin
             system_control <= 16'd1;
-            MCU_buttons    <= 9'd0;  
+            MCU_buttons    <= 9'd0; 
+            request_bgpd   <= 1'b0;
         end else begin
             request_buttons              <= 1'b0;
             request_version              <= 1'b0;
@@ -107,6 +113,15 @@ module system_monitor(
             
             if(rx_data_val)
             begin
+                if(rx_address == 7'hD) begin
+                    request_bgpd <= 1'b1;
+                end
+                if(rx_address == 7'hC) begin
+                    paletteOBJIn <= rx_data[63:0];
+                end
+                if(rx_address == 7'hB) begin
+                    paletteBGIn <= rx_data[63:0];
+                end
                 if(rx_address == 7'd9) begin
                     MCU_buttons <= rx_data[8:0];
                 end
@@ -167,7 +182,11 @@ module system_monitor(
                   brightness                   <= lowerpowerOldBL;
                end
             end
-            
+
+            if (write_done && tx_channel == 9 && request_bgpd) begin
+                request_bgpd <= 1'b0; // Clear after sending once
+            end
+ 
         end
     end
 
@@ -365,15 +384,16 @@ module system_monitor(
     reg [13:0] version = {
         1'd0,  // 1 bit reserved   
         1'd0,  // 1 bit debug,
-        6'd5,  // 6 bits minor version
+        6'd6,  // 6 bits minor version
         6'd18  // 6 bits major version
     };
     
-    localparam  NUM_CH = 9;
+    localparam  NUM_CH = 10;
     wire [$clog2(NUM_CH)-1:0] tx_channel;
     
     wire [NUM_CH-1:0] channelsNewDataValid = 
     {
+        request_bgpd,                                 // BG Palette Data
         ~menuDisabled | request_SystemStatusExtended, // System Status Extended
         ~menuDisabled,                                // reserved
         ~menuDisabled | request_version,              // version info
@@ -397,6 +417,7 @@ module system_monitor(
                               (tx_channel == 6) ? 8'd2 : // version info
                               (tx_channel == 7) ? 8'd4 : // reserved
                               (tx_channel == 8) ? 8'd4 : // System Status Extended
+                              (tx_channel == 9) ? 8'd8 : // BG Palette Data
                               8'd1;
     
     wire [7:0] tx_bytepos;
@@ -427,13 +448,20 @@ module system_monitor(
                              (tx_channel == 7 && tx_bytepos == 2) ? 8'd0 : 
                              (tx_channel == 7 && tx_bytepos == 3) ? 8'd0 : 
                              
-                             (tx_channel == 8 && tx_bytepos == 0) ? {7'd0, lowpowerBacklight} : // System Status Extended
+                             (tx_channel == 8 && tx_bytepos == 0) ? {6'd0, gbc_mode, lowpowerBacklight} : // System Status Extended
                              (tx_channel == 8 && tx_bytepos == 1) ? 8'd0 : 
                              (tx_channel == 8 && tx_bytepos == 2) ? 8'd0 : 
                              (tx_channel == 8 && tx_bytepos == 3) ? 8'd0 : 
-                             
+
+                             (tx_channel == 9 && tx_bytepos == 0) ? bgpd[7:0] : // BG Palette Data
+                             (tx_channel == 9 && tx_bytepos == 1) ? bgpd[15:8] :
+                             (tx_channel == 9 && tx_bytepos == 2) ? bgpd[23:16] :
+                             (tx_channel == 9 && tx_bytepos == 3) ? bgpd[31:24] :
+                             (tx_channel == 9 && tx_bytepos == 4) ? bgpd[39:32] :
+                             (tx_channel == 9 && tx_bytepos == 5) ? bgpd[47:40] :
+                             (tx_channel == 9 && tx_bytepos == 6) ? bgpd[55:48] :
+                             (tx_channel == 9 && tx_bytepos == 7) ? bgpd[63:56] :
                              8'd0;
-   
     
     wire uartDisabled;
     

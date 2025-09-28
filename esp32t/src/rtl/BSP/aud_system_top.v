@@ -47,12 +47,12 @@ module aud_system_top(
         if (~reset_n) begin
             count <= 5'd0;
         end
-        else 
+        else
         begin
             if (count == 5'd0) begin
                 count <= 5'd31;
                 AUD_WCLK <= 1'b1;
-                stereo_sr <= ~hHeadphones ? {16'd0,gMonoSpeaker[16:1]} : 
+                stereo_sr <= ~hHeadphones ? {16'd0,gMonoSpeaker[16:1]} :
                     { right_m[15:0],left_m[15:0] };
             end
             else begin

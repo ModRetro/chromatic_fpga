@@ -30,6 +30,11 @@ module video (
 
 	input  boot_rom_en,
 
+   input customPaletteEna,
+   input [63:0] paletteBGIn,
+   input [63:0] paletteOBJIn,
+   output [63:0] bgpd_out,
+
 	// cpu register adn oam interface
 	input  cpu_sel_oam,
 	input  cpu_sel_reg,
@@ -192,6 +197,7 @@ reg bgpi_ai;    //Bit 7     Auto Increment  (0=Disabled, 1=Increment after Writi
 //FF69 - BCPD/BGPD - Background Palette Data
 reg[7:0] bgpd [63:0]; //64 bytes
 wire [7:0] bug1 = bgpd[0];
+assign bgpd_out = {bgpd[0], bgpd[1], bgpd[2], bgpd[3], bgpd[4], bgpd[5], bgpd[6], bgpd[7]};
 
 //FF6A - OCPS/OBPI - Sprite Palette Index
 reg [5:0] obpi; //Bit 0-5   Index (00-3F)
@@ -1064,17 +1070,43 @@ wire [1:0] obp_data =   (sprite_pixel_data == 2'b00) ? obp[1:0] :
 wire [5:0] palette_index = isGBC_mode ? {bg_tile_attr[2:0], bg_pix_data, 1'b0} :  //GBC game
 									{3'd0, bgp_data , 1'b0}; //GB game in GBC mode
 
+
+wire [7:0] paletteCustomBG [7:0];
+assign paletteCustomBG[0] = paletteBGIn[ 7: 0];
+assign paletteCustomBG[1] = paletteBGIn[15: 8];
+assign paletteCustomBG[2] = paletteBGIn[23:16];
+assign paletteCustomBG[3] = paletteBGIn[31:24];
+assign paletteCustomBG[4] = paletteBGIn[39:32];
+assign paletteCustomBG[5] = paletteBGIn[47:40];
+assign paletteCustomBG[6] = paletteBGIn[55:48];
+assign paletteCustomBG[7] = paletteBGIn[63:56];
+
+wire [7:0] paletteCustomOBJ [7:0];
+assign paletteCustomOBJ[0] = paletteOBJIn[ 7: 0];
+assign paletteCustomOBJ[1] = paletteOBJIn[15: 8];
+assign paletteCustomOBJ[2] = paletteOBJIn[23:16];
+assign paletteCustomOBJ[3] = paletteOBJIn[31:24];
+assign paletteCustomOBJ[4] = paletteOBJIn[39:32];
+assign paletteCustomOBJ[5] = paletteOBJIn[47:40];
+assign paletteCustomOBJ[6] = paletteOBJIn[55:48];
+assign paletteCustomOBJ[7] = paletteOBJIn[63:56];
+
 // apply bg palette
-wire [14:0] pix_rgb_data = isGBC ? {bgpd[palette_index+1][6:0],bgpd[palette_index]} : //gbc
-							{13'd0,bgp_data};
+wire [2:0] palette_index_gb = palette_index[2:0];
+wire [14:0] gbc_paletteBG = isGBC ? {bgpd[palette_index+1][6:0], bgpd[palette_index]} : // gbc
+                                    {13'd0, bgp_data};
+wire [14:0] pix_rgb_data = (customPaletteEna && ~isGBC_mode) ? {paletteCustomBG[palette_index_gb+1][6:0], paletteCustomBG[palette_index_gb]} : // custom
+                                                                gbc_paletteBG;
 
 // apply sprite palette
-wire [2:0] spr_cgb_pal_out = {spr_cgb_pal_shift[2][7], spr_cgb_pal_shift[1][7],spr_cgb_pal_shift[0][7]};
-wire [5:0] sprite_palette_index = isGBC_mode? {spr_cgb_pal_out, sprite_pixel_data, 1'b0 } : //gbc game
-								{sprite_pixel_cmap, obp_data, 1'b0}; //GB game in GBC mode
+wire [2:0] spr_cgb_pal_out = {spr_cgb_pal_shift[2][7], spr_cgb_pal_shift[1][7], spr_cgb_pal_shift[0][7]};
+wire [5:0] sprite_palette_index = isGBC_mode ? {spr_cgb_pal_out, sprite_pixel_data, 1'b0 } : //gbc game
+                                               {sprite_pixel_cmap, obp_data, 1'b0}; //GB game in GBC mode
 
-wire [14:0] sprite_pix = isGBC ? {obpd[sprite_palette_index+1][6:0],obpd[sprite_palette_index]} : //gbc
-							{13'd0,obp_data};
+wire [14:0] gbc_paletteSprite = isGBC ? {obpd[sprite_palette_index+1][6:0], obpd[sprite_palette_index]} : // gbc
+                                        {13'd0, obp_data};
+wire [14:0] sprite_pix = (customPaletteEna && ~isGBC_mode) ? {paletteCustomOBJ[sprite_palette_index+1][6:0], paletteCustomOBJ[sprite_palette_index]} : // custom
+                                                              gbc_paletteSprite;
 
 assign lcd_clk = mode3 && ~skip_en && ~sprite_fetch_hold && ~bg_shift_empty && (pcnt >= 8);
 
