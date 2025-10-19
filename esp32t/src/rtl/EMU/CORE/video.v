@@ -32,8 +32,9 @@ module video (
 
    input customPaletteEna,
    input [63:0] paletteBGIn,
-   input [63:0] paletteOBJIn,
-   output [63:0] bgpd_out,
+   input [63:0] paletteOBJ0In,
+   input [63:0] paletteOBJ1In,
+   output [63:0] gpd_out,
 
 	// cpu register adn oam interface
 	input  cpu_sel_oam,
@@ -197,7 +198,6 @@ reg bgpi_ai;    //Bit 7     Auto Increment  (0=Disabled, 1=Increment after Writi
 //FF69 - BCPD/BGPD - Background Palette Data
 reg[7:0] bgpd [63:0]; //64 bytes
 wire [7:0] bug1 = bgpd[0];
-assign bgpd_out = {bgpd[0], bgpd[1], bgpd[2], bgpd[3], bgpd[4], bgpd[5], bgpd[6], bgpd[7]};
 
 //FF6A - OCPS/OBPI - Sprite Palette Index
 reg [5:0] obpi; //Bit 0-5   Index (00-3F)
@@ -206,6 +206,9 @@ reg obpi_ai;    //Bit 7     Auto Increment  (0=Disabled, 1=Increment after Writi
 //FF6B - OCPD/OBPD - Sprite Palette Data
 reg[7:0] obpd [63:0]; //64 bytes
 wire [7:0] bug2 = obpd[0];
+
+// Combined game palette data for games' default palette detection
+assign gpd_out = {bgpd[2], bgpd[3], bgpd[4], bgpd[5], obpd[10], obpd[11], obpd[12], obpd[13]};
 
 //FF6C Bit 0 OBJ priority mode select
 // 0: smaller OBJ-NO has higher priority (GBC)
@@ -1081,15 +1084,24 @@ assign paletteCustomBG[5] = paletteBGIn[47:40];
 assign paletteCustomBG[6] = paletteBGIn[55:48];
 assign paletteCustomBG[7] = paletteBGIn[63:56];
 
-wire [7:0] paletteCustomOBJ [7:0];
-assign paletteCustomOBJ[0] = paletteOBJIn[ 7: 0];
-assign paletteCustomOBJ[1] = paletteOBJIn[15: 8];
-assign paletteCustomOBJ[2] = paletteOBJIn[23:16];
-assign paletteCustomOBJ[3] = paletteOBJIn[31:24];
-assign paletteCustomOBJ[4] = paletteOBJIn[39:32];
-assign paletteCustomOBJ[5] = paletteOBJIn[47:40];
-assign paletteCustomOBJ[6] = paletteOBJIn[55:48];
-assign paletteCustomOBJ[7] = paletteOBJIn[63:56];
+wire [7:0] paletteCustomOBJ [15:0];
+assign paletteCustomOBJ[0]  = paletteOBJ0In[ 7: 0];
+assign paletteCustomOBJ[1]  = paletteOBJ0In[15: 8];
+assign paletteCustomOBJ[2]  = paletteOBJ0In[23:16];
+assign paletteCustomOBJ[3]  = paletteOBJ0In[31:24];
+assign paletteCustomOBJ[4]  = paletteOBJ0In[39:32];
+assign paletteCustomOBJ[5]  = paletteOBJ0In[47:40];
+assign paletteCustomOBJ[6]  = paletteOBJ0In[55:48];
+assign paletteCustomOBJ[7]  = paletteOBJ0In[63:56];
+
+assign paletteCustomOBJ[8]  = paletteOBJ1In[ 7: 0];
+assign paletteCustomOBJ[9]  = paletteOBJ1In[15: 8];
+assign paletteCustomOBJ[10] = paletteOBJ1In[23:16];
+assign paletteCustomOBJ[11] = paletteOBJ1In[31:24];
+assign paletteCustomOBJ[12] = paletteOBJ1In[39:32];
+assign paletteCustomOBJ[13] = paletteOBJ1In[47:40];
+assign paletteCustomOBJ[14] = paletteOBJ1In[55:48];
+assign paletteCustomOBJ[15] = paletteOBJ1In[63:56];
 
 // apply bg palette
 wire [2:0] palette_index_gb = palette_index[2:0];

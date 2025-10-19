@@ -1,23 +1,30 @@
+## v18.7
+
+### Fixed
+- Custom sprite palettes distinguish betwen obj0 and obj1
+
 ## v18.6
 
-## Added
-- Support for streaming audio to PCs over USB.
+### Added
+- Support for streaming audio over USB.
+- Support for custom palettes to override existing palette after boot.
 
-## Changed
-- Inverted the audio output polarity to match GBC.
+### Changed
+- Inverted audio polarity
 
 ## Fixed
-- Reworked the design of frame blending.
+- Reworked the design of frame blending
 
 ## v18.5
-## Added
+
+### Added
 - Support for streaming on macOS and Discord.
 
-## Changed
+### Changed
 - The default palettes changed for `A + B + Right` and `A + B + Left`. All credit to **rayjt9**.
 - Tuned settings for the Chromatic Power Core.
 
-## Fixed
+### Fixed
 - LED indicator light now correct for AA, USB, and Chromatic Power Core use cases.
 - Fixed an issue where the clock would skip in titles with an RTC (e.g. Pokemon Crystal).
 - Fixed an issue where save data could be lost in some titles (e.g. Pokemon Crystal).

@@ -10,7 +10,7 @@ For more information about the ModRetro Chromatic, please see visit [ModRetro.co
 This project builds upon the open source work provided by the Game Boy `MiSTer` project. When checking out this repository, make sure to run the following command as this repository submodules the Game Boy `MiSTer` project.
 
 ```bash
-git submodule update --init --remote --recursive
+git submodule update --init --recursive
 ```
 
 ### Gowin Development Environment
@@ -62,7 +62,7 @@ Here, `<file>` refers to the generated bitstream file. This file can be found at
 
 ## Custom Modifications
 
-When modifying the RTL design, please also update the 14-bit FPGA version within [esp32t/src/rtl/BSP/system_monitor.sv] around line 362 (see `version`).
+When modifying the RTL design, please also update the 14-bit FPGA version within [esp32t/src/rtl/BSP/system_monitor.sv] around line 384 (see `version`).
 
 This will ensure you can always using the [ModRetro Update Tool](https://modretro.com/pages/downloads#mrupdater) to restore your Chromatic to the latest official release.
 

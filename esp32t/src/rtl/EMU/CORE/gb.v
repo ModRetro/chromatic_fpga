@@ -31,9 +31,10 @@ module gb (
     input paletteOff,
     input customPaletteEna,
     input [63:0] paletteBGIn,
-    input [63:0] paletteOBJIn,
+    input [63:0] paletteOBJ0In,
+    input [63:0] paletteOBJ1In,
     output gbc_mode,
-    output [63:0] bgpd,
+    output [63:0] gpd,
 
     // cartridge interface
     // can adress up to 1MB ROM
@@ -779,8 +780,9 @@ video video (
     .boot_rom_en ( boot_rom_enabled ),
     .customPaletteEna ( customPaletteEna ),
     .paletteBGIn      ( paletteBGIn ),
-    .paletteOBJIn     ( paletteOBJIn ),
-    .bgpd_out         ( bgpd     ),
+    .paletteOBJ0In     ( paletteOBJ0In ),
+    .paletteOBJ1In     ( paletteOBJ1In ),
+    .gpd_out         ( gpd     ),
 
     .irq         ( video_irq     ),
     .vblank_irq  ( vblank_irq    ),

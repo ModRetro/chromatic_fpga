@@ -18,7 +18,7 @@ module top #(parameter ISSIMU=0)
     input               BTN_MENU,
     input               BTN_SEL,
     input               BTN_START,
-    
+
     output  [15:0]      CART_A,
     output              CART_CLK,
     output              CART_CS,
@@ -31,7 +31,7 @@ module top #(parameter ISSIMU=0)
     input               CART_DET,
     input               CART_AUDIN,
 
-    input               CLK_FPGA,       // 33.55432MHz 
+    input               CLK_FPGA,       // 33.55432MHz
     input               CLK_27MHz,
     input               CLK_24MHz,
 
@@ -44,13 +44,13 @@ module top #(parameter ISSIMU=0)
 
     output reg          ESP32_IO0,
 
-    output              I2S_BCLK,       // D16 IO33 
-    input               I2S_WS,         // D15 IO25 CC 
-    input               I2S_DIN,        // D14 IO26 
-    input               I2S_DOUT,       // D13 IO27 
-    input               ESP32_MCU_D12,  // D12 IO9 
+    output              I2S_BCLK,       // D16 IO33
+    input               I2S_WS,         // D15 IO25 CC
+    input               I2S_DIN,        // D14 IO26
+    input               I2S_DOUT,       // D13 IO27
+    input               ESP32_MCU_D12,  // D12 IO9
     output              ESP32_MCU_D11,  // D11 IO10 CC
-    input               QSPI_CS,        // CS D10 IO5 CC 
+    input               QSPI_CS,        // CS D10 IO5 CC
     input               QSPI_CLK,       // CLK D9 IO18 CC
     input               QSPI_MOSI,      // D D8 IO23
     input               QSPI_MISO,      // Q D7 IO19
@@ -75,7 +75,7 @@ module top #(parameter ISSIMU=0)
     output              IR_LED,
 
     output              LCD_PWM,
-    
+
     output [5:0]        LCD_DB,
     output              LCD_DOTCLK,
     output              LCD_ENABLE,
@@ -120,7 +120,7 @@ module top #(parameter ISSIMU=0)
     wire    BIST_finished;
 
     assign FPGA_LED_EN = 1'd1;
-    
+
     wire lock_o;
 
     wire fClk;
@@ -128,7 +128,7 @@ module top #(parameter ISSIMU=0)
     wire hClk;
     wire gClk;
     wire xClk;
-    
+
     Gowin_PLL u_Gowin_PLL(
         .reset(1'd0),//input reset
         .clkout0(fClk), //output clkout0 ~150MHz
@@ -140,16 +140,16 @@ module top #(parameter ISSIMU=0)
         .lock(lock_o), //output lock
         .clkin(CLK_FPGA) //input clkin
     );
-    
+
     reg [13:0] voltageSim = 14'd1500;
     reg voltageSimDir = 1'b0;
-    
+
     reg [22:0] secondCounter = 'd0;
     reg secondEna;
     reg halfSecondEna;
     reg [16:0] percentCounter = 'd0;
     reg percentEna;
-    
+
     always@(posedge gClk) begin
         percentEna <= 1'b0;
         if (percentCounter == 83886) begin
@@ -157,8 +157,8 @@ module top #(parameter ISSIMU=0)
             percentCounter <= 17'd0;
         end else begin
             percentCounter <= percentCounter + 1'd1;
-        end 
-    
+        end
+
         secondEna      <= 1'b0;
         halfSecondEna  <= 1'b0;
         if (secondCounter == 4194303) begin
@@ -171,8 +171,8 @@ module top #(parameter ISSIMU=0)
             percentCounter <= 17'd0;
         end else begin
             secondCounter <= secondCounter + 1'd1;
-        end 
-        
+        end
+
         if (secondEna) begin
             if (voltageSimDir) begin
                 voltageSim <= voltageSim + 50;
@@ -187,7 +187,7 @@ module top #(parameter ISSIMU=0)
             end
         end
     end
-    
+
     wire low_battery;
     wire boot_rom_enabled;
     wire LED_Green;
@@ -195,13 +195,13 @@ module top #(parameter ISSIMU=0)
     wire LED_Yellow;
     wire LED_White;
     wire [7:0]  pmic_sys_status;
-    
+
     always@(posedge xClk)
     begin
         if (LED_White) begin
             FPGA_LED_R <= 1'd0;
             FPGA_LED_B <= 1'd0;
-            FPGA_LED_G <= 1'd0;        
+            FPGA_LED_G <= 1'd0;
         end else if (LED_Green) begin
             FPGA_LED_R <= 1'd1;
             FPGA_LED_B <= 1'd1;
@@ -220,7 +220,7 @@ module top #(parameter ISSIMU=0)
             FPGA_LED_G <= 1'd1;
         end
     end
-    
+
     wire [15:0]       hWrBurstQ;
     wire [15:0]       hWrBurstQ2;
     wire              hValid;
@@ -268,23 +268,23 @@ module top #(parameter ISSIMU=0)
             // synthesis translate_on
         end
     end
-    
+
     wire [31:0] debug_system;
     wire [15:0] system_control;
     wire [17:0] LCD_DB_UVC;
     wire menuDisabled;
     wire slideOutActive;
     wire hDrawOSD;
-    vid_system_top #(ISSIMU) 
+    vid_system_top #(ISSIMU)
     u_vid_system_top(
         .gClk(gClk),
         .hClk(hClk),
         .pClk(pClk),
         .reset(memrst),
-        
+
         .BTN_MENU(menuDisabled),
         .slideOutActive(slideOutActive),
-        
+
         .LCD_DB(LCD_DB),
         .LCD_ENABLE_UVC(LCD_ENABLE_UVC),
         .LCD_DB_UVC(LCD_DB_UVC),
@@ -299,7 +299,7 @@ module top #(parameter ISSIMU=0)
         .LCD_TE(LCD_TE),
         .LCD_VSYNC(LCD_VSYNC),
         .LCD_GENLOCK(),
-        
+
         .frameBlendEnable(system_control[1]),
         .colorCorrectionEnableLCD(system_control[2]),
         .colorCorrectionEnableUVC(system_control[3]),
@@ -312,13 +312,13 @@ module top #(parameter ISSIMU=0)
         .gPercentEna(percentEna),
         .debug_system(debug_system),
         .debug_system_on(1'b0),
-        
+
         .hDrawOSD(hDrawOSD),
         .hGBNewLine(hGBNewLine),
         .hGBAddress(hGBAddress),
         .hGBWrite(hGBWrite),
         .hGBData(hGBData),
-    
+
         .hValid(hValid),
         .hHsync(hHsync),
         .hVsync(hVsync),
@@ -335,7 +335,7 @@ module top #(parameter ISSIMU=0)
 
     wire [15:0] left, right;
     wire [7:0]  volume;
-    wire        hHeadphones;    
+    wire        hHeadphones;
 
     aud_system_top u_aud_system_top(
         .gClk(gClk),
@@ -343,14 +343,14 @@ module top #(parameter ISSIMU=0)
         .reset_n(lock_o),
         .left(left),
         .right(right),
-        
+
         .AUD_BCLK(AUD_BCLK),
         .AUD_DIN(AUD_DIN),
         .AUD_DOUT(),
         .AUD_MCLK(AUD_MCLK),
         .AUD_RESET(AUD_RESET),
         .AUD_WCLK(AUD_WCLK),
-            
+
         .software_mute(system_control[0]),
         .pmic_sys_status(pmic_sys_status),
         .volume(volume),
@@ -370,14 +370,14 @@ module top #(parameter ISSIMU=0)
         else
             memrst <= CART_DET_sr[17:2] == 16'h7FFF || CART_DET_sr[17:2] == 16'h8000;
 
-    mem_system_top #(ISSIMU) 
-    u_mem_system_top 
+    mem_system_top #(ISSIMU)
+    u_mem_system_top
     (
         .xClk(xClk),
         .fClk(fClk),
         .hClk(hClk),
         .reset(memrst),
-        
+
         .QSPI_CLK(QSPI_CLK),
         .QSPI_MOSI(QSPI_MOSI),
         .QSPI_MISO(QSPI_MISO),
@@ -398,7 +398,7 @@ module top #(parameter ISSIMU=0)
         .hGBWrite(hGBWrite),
         .hGBData(hGBData),
 
-        // mm_burst_read_to_stream 
+        // mm_burst_read_to_stream
         .hValid(gb_lcd_clkena),
         .hHsync(gb_lcd_mode[1]),
         .hVsync(gb_lcd_vsync),
@@ -410,12 +410,12 @@ module top #(parameter ISSIMU=0)
 
     wire lcd_on_int;
     wire lcd_off_overwrite;
-    
+
     wire [8:0] MCU_buttons;
-    
+
     wire BTN_MENU_ored = BTN_MENU & ~MCU_buttons[8]; // BTN_MENU is low active
-    
-    
+
+
     wire BTN_A_filtered;
     wire BTN_B_filtered;
     wire BTN_DPAD_DOWN_filtered;
@@ -424,7 +424,7 @@ module top #(parameter ISSIMU=0)
     wire BTN_DPAD_UP_filtered;
     wire BTN_SEL_filtered;
     wire BTN_START_filtered;
-    
+
     button_debouncer debouncer_A         (gClk, BTN_A         , BTN_A_filtered         );
     button_debouncer debouncer_B         (gClk, BTN_B         , BTN_B_filtered         );
     button_debouncer debouncer_DPAD_DOWN (gClk, BTN_DPAD_DOWN , BTN_DPAD_DOWN_filtered );
@@ -433,25 +433,27 @@ module top #(parameter ISSIMU=0)
     button_debouncer debouncer_DPAD_UP   (gClk, BTN_DPAD_UP   , BTN_DPAD_UP_filtered   );
     button_debouncer debouncer_SEL       (gClk, BTN_SEL       , BTN_SEL_filtered       );
     button_debouncer debouncer_START     (gClk, BTN_START     , BTN_START_filtered     );
-    
+
     wire [63:0] paletteBGIn;
-    wire [63:0] paletteOBJIn;
+    wire [63:0] paletteOBJ0In;
+    wire [63:0] paletteOBJ1In;
     wire gbc_mode;
-    wire [63:0] bgpd;
-    
+    wire [63:0] gpd;
+
     emu_system_top u_emu_system_top(
         .hclk(hClk),
         .pclk(pClk),
         .reset_n(~memrst),//lock_o),
         .POWER_GOOD(~POWER_ON_FPGA),
-        
+
         .customPaletteEna(paletteBGIn[63]),
         .paletteOff(system_control[12]),
         .paletteBGIn(paletteBGIn),
-        .paletteOBJIn(paletteOBJIn),
+        .paletteOBJ0In(paletteOBJ0In),
+        .paletteOBJ1In(paletteOBJ1In),
         .gbc_mode(gbc_mode),
-        .bgpd(bgpd),
-        
+        .gpd(gpd),
+
         .BTN_NODIAGONAL(system_control[11]),
         .BTN_A(BTN_A_filtered | MCU_buttons[3]),
         .BTN_B(BTN_B_filtered | MCU_buttons[2]),
@@ -463,7 +465,7 @@ module top #(parameter ISSIMU=0)
         .BTN_SEL(BTN_SEL_filtered | MCU_buttons[1]),
         .BTN_START(BTN_START_filtered | MCU_buttons[0]),
         .MENU_CLOSED(menuDisabled & ~slideOutActive),
-        
+
         .CART_A(CART_A),
         .CART_CLK(CART_CLK),
         .CART_CS(CART_CS),
@@ -479,12 +481,12 @@ module top #(parameter ISSIMU=0)
         .LINK_CLK(LINK_CLK),
         .LINK_IN(LINK_IN),
         .LINK_OUT(LINK_OUT),
-        
+
         .lcd_on_int(lcd_on_int),
         .lcd_off_overwrite(lcd_off_overwrite),
 
         .boot_rom_enabled(boot_rom_enabled),
-        
+
         // audio
         .left(left),
         .right(right),
@@ -559,7 +561,7 @@ module top #(parameter ISSIMU=0)
             d1  <= 'd0;
         end
         else
-        begin        
+        begin
             hr1 <= LCD_HSYNC;
             vr1 <= LCD_VSYNC;
             he1 <= LCD_ENABLE_UVC;
@@ -567,7 +569,7 @@ module top #(parameter ISSIMU=0)
         end
     end
 
-    reg [31:0] usbinitcnt;
+    reg [23:0] usbinitcnt;
     reg usbrst = 1'd1;
 
     // 8388607 = 1s
@@ -628,7 +630,7 @@ module top #(parameter ISSIMU=0)
         .VBAT_ADC_P(VBAT_ADC_P),
         .VBAT_ADC_N(VBAT_ADC_N)
     );
-    
+
     wire [7:0]  uart_tx_data;
     wire        uart_tx_busy;
     wire        uart_tx_val;
@@ -674,9 +676,10 @@ module top #(parameter ISSIMU=0)
         .LED_White(LED_White),
         .system_control(system_control),
         .paletteBGIn(paletteBGIn),
-        .paletteOBJIn(paletteOBJIn),
+        .paletteOBJ0In(paletteOBJ0In),
+        .paletteOBJ1In(paletteOBJ1In),
         .gbc_mode(gbc_mode),
-        .bgpd(bgpd),
+        .gpd(gpd),
         .uart_rx_data(uart_rx_data[7:0]),
         .uart_rx_val(uart_rx_val),
         .uart_tx_busy(uart_tx_busy),
@@ -684,15 +687,15 @@ module top #(parameter ISSIMU=0)
         .uart_tx_val(uart_tx_val)
     );
 
-    UART2 
+    UART2
     #(.CLK_FREQ(30'd8388608))
     u_UART2
     (
         .CLK(gClk), // clock
         .RST(~lock_o), // reset
-        // UART INTERFACE     
+        // UART INTERFACE
         .UART_TXD(ESP32_MCU_D11), //output
-        .UART_RXD(ESP32_MCU_D12), //input    
+        .UART_RXD(ESP32_MCU_D12), //input
         .UART_RTS(), //output // when UART_RTS = 0, UART This Device Ready to receive.
         .UART_CTS(1'd0), //input// when UART_CTS = 0, UART Opposite Device Ready to receive.
         // UART Control Reg

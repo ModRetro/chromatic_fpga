@@ -18,13 +18,13 @@ module aud_system_top(
     output              AUD_MCLK,
     output              AUD_RESET,
     output   reg        AUD_WCLK,
-    
+
     inout               SCL,
-    inout               SDA    
+    inout               SDA
 );
 
     reg [31:0] stereo_sr;
-    reg [4:0] count;  
+    reg [4:0] count;
 
     reg gClkHalf;
     always@(posedge gClk)
@@ -32,11 +32,11 @@ module aud_system_top(
 
     wire [7:0] hpgpio;
     assign hHeadphones = hpgpio[1];
-    
+
     wire mute = (software_mute | volume > 8'h76);
-    
-    wire [15:0] left_m =  mute ? 16'd0 : left;
-    wire [15:0] right_m = mute ? 16'd0 : right;
+
+    wire [15:0] left_m =  mute ? 16'd0 : -left;
+    wire [15:0] right_m = mute ? 16'd0 : -right;
 
     reg [16:0] gMonoSpeaker;
     always @(posedge gClk)
@@ -67,12 +67,12 @@ module aud_system_top(
     assign AUD_MCLK     = gClk;
     assign AUD_BCLK     = ~gClkHalf;
     assign AUD_DIN      = stereo_sr[31];
-    assign AUD_RESET    = reset_n; 
+    assign AUD_RESET    = reset_n;
 
     parameter I2C_DATA_WIDTH = 8;
     parameter REGISTER_WIDTH = 8;
     parameter ADDRESS_WIDTH = 7;
-    
+
     wire    [I2C_DATA_WIDTH-1:0]     i2c_miso_data;  // output
     wire                             i2c_busy;       // output
 
@@ -115,7 +115,7 @@ module aud_system_top(
         .i2c_busy(i2c_busy),
         .enable(tlv320_init_done),
         .mute(software_mute),
-        
+
         .volume(volume),
         .gpio(hpgpio),
         .pmic_sys_status(pmic_sys_status),
@@ -149,6 +149,6 @@ module aud_system_top(
         .external_serial_data   (SDA),
         .external_serial_clock  (SCL)
     );
-    
+
 
 endmodule
