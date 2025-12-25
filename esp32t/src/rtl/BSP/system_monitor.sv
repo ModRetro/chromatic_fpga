@@ -54,27 +54,27 @@ module system_monitor(
     reg [15:0] btnMenu_sr;
     reg btnMenu_r1;
     reg btnMenu_r2;
-    
+
     reg [15:0] btnDown_sr;
     reg btnDown_r1;
     reg btnDown_r2;
-    
+
     reg [15:0] btnUp_sr;
     reg btnUp_r1;
     reg btnUp_r2;
-    
+
     reg [15:0] btnLeft_sr;
     reg btnLeft_r1;
     reg btnLeft_r2;
-    
+
     reg [15:0] btnRight_sr;
     reg btnRight_r1;
     reg btnRight_r2;
-    
+
     reg btnStart_r1;
-    reg btnStart_r2;    
+    reg btnStart_r2;
     reg btnSelect_r1;
-    reg btnSelect_r2;    
+    reg btnSelect_r2;
     reg btnA_r1;
     reg btnA_r2;
     reg btnB_r1;
@@ -83,35 +83,35 @@ module system_monitor(
     reg pressed;
     reg [3:0] brightness = 4'd3;
     reg [1:0] blockBrightnessReceive;
-    
+
     reg request_buttons  = 1'b0;
     reg request_version  = 1'b0;
     reg updateBrightness = 1'b0;
     reg request_gpd     = 1'b0;
-    
+
     reg lowpowerBacklight = 1'b0;
     reg [3:0] lowerpowerOldBL;
     reg request_SystemStatusExtended = 1'b0;
-    
+
     reg [13:0] volt;
     wire       bat_is_LI;
-    
+
     always@(posedge clk or posedge reset)
     begin
         if(reset) begin
-            system_control <= 16'd1;
-            MCU_buttons    <= 9'd0; 
+            system_control <= 16'd0;
+            MCU_buttons    <= 9'd0;
             request_gpd   <= 1'b0;
         end else begin
             request_buttons              <= 1'b0;
             request_version              <= 1'b0;
             updateBrightness             <= 1'b0;
             request_SystemStatusExtended <= 1'b0;
-            
+
             if (gHalfSecondEna) begin
                LCD_BACKLIGHT_INIT  <= 1'd1;
             end
-            
+
             if(rx_data_val)
             begin
                 if(rx_address == 7'hD) begin
@@ -147,8 +147,8 @@ module system_monitor(
                     request_buttons <= 1'b1;
                 end
             end
-                
-            if (menuDisabled) begin     
+
+            if (menuDisabled) begin
                 if((btnLeft_sr[15:0] == 16'h8000)&&~btnMenu_r2) begin
                     if(brightness >= 1)
                     begin
@@ -168,19 +168,19 @@ module system_monitor(
                     end
                 end
             end
-            
+
             if (lowpowerBacklight) begin
                brightness       <= 4'd0;
                updateBrightness <= 1'b0;
             end
-            
+
             if (volt >= 700) begin // ~1.8V
                if (~lowpowerBacklight && ~bat_is_LI && volt < 979) begin // below 2.55 V
                   request_SystemStatusExtended <= 1'b1;
                   lowpowerBacklight            <= 1'b1;
                   lowerpowerOldBL              <= brightness;
-               end       
-               
+               end
+
                if (lowpowerBacklight && ~bat_is_LI && volt > 1293) begin // above 3.4 V
                   request_SystemStatusExtended <= 1'b1;
                   lowpowerBacklight            <= 1'b0;
@@ -191,7 +191,7 @@ module system_monitor(
             if (write_done && tx_channel == 9 && request_gpd) begin
                 request_gpd <= 1'b0; // Clear after sending once
             end
- 
+
         end
     end
 
@@ -211,40 +211,40 @@ module system_monitor(
                menuDisabled <= ~menuDisabled;
                menuDown     <= 1'b0;
             end
-            
+
             if (btnA_r2 | btnB_r2 | btnDown_r2 | btnUp_r2 | btnLeft_r2 | btnRight_r2 | btnSelect_r2 | btnStart_r2) menuDown <= 1'b0;
-            
+
             btnDown_r1 <= BTN_DPAD_DOWN;
             btnDown_r2 <= btnDown_r1;
             btnDown_sr <= {btnDown_sr[14:0], btnDown_r2};
-                    
+
             btnUp_r1 <= BTN_DPAD_UP;
             btnUp_r2 <= btnUp_r1;
             btnUp_sr <= {btnUp_sr[14:0], btnUp_r2};
-            
+
             btnLeft_r1 <= BTN_DPAD_LEFT;
             btnLeft_r2 <= btnLeft_r1;
             btnLeft_sr <= {btnLeft_sr[14:0], btnLeft_r2};
-                    
+
             btnRight_r1 <= BTN_DPAD_RIGHT;
             btnRight_r2 <= btnRight_r1;
             btnRight_sr <= {btnRight_sr[14:0], btnRight_r2};
-            
+
             btnSelect_r1 <= BTN_SEL;
             btnSelect_r2 <= btnSelect_r1;
-            
+
             btnStart_r1 <= BTN_START;
             btnStart_r2 <= btnStart_r1;
-            
+
             btnA_r1 <= BTN_A;
             btnA_r2 <= btnA_r1;
-            
+
             btnB_r1 <= BTN_B;
             btnB_r2 <= btnB_r1;
-                    
+
         end
     end
-    
+
     reg [7:0] lcdcount;
     always@(posedge clk)
         if(lcdcount < 448)
@@ -257,13 +257,13 @@ module system_monitor(
 
     // 8.388608Mhz clock -> ~119.2ns
     // 0.005s / 119.2ns = 41946
-    
+
     localparam ADC_INTERVAL_CYCLES = 'd41946;
     reg [15:0] adc_timer;
     reg [9:0] startup_cnt;            // wait for ~4 seconds to have stable measurements
     reg signed [10:0] startup_select; // measure if AA or lithium is used, negative -> LI, positive -> AA
     reg startup_done = 1'b0;
-    
+
     always@(posedge clk) begin
         if(adc_timer < ADC_INTERVAL_CYCLES) begin
             adc_timer <= adc_timer + 1'd1;
@@ -290,7 +290,7 @@ module system_monitor(
    wire [13:0] VOLTAGE_RED    = bat_is_LI ? 14'd1182 : 14'd1071; //  3.1V  LI : 2.8V AA
 
    reg blink;
-    
+
    always@(posedge clk or posedge reset) begin
 
       if(reset) begin
@@ -307,16 +307,16 @@ module system_monitor(
          startup_done   <= 1'b0;
          transmitVolt   <= 1'b0;
       end else begin
-      
+
          transmitVolt <= 1'b0;
-      
+
          debug_system <= {1'd0 , startup_select,  6'd0, volt };
-      
+
          if(hAdcReady_r1) begin
             if (~startup_cnt[9]) begin // wait for ~4 seconds to have stable measurements
                startup_cnt <= startup_cnt + 1'd1;
             end
-         
+
             if (startup_done) begin // average values for determined type only
                volt_sum <= volt_sum + hAdcValue_r1;
                volt_cnt <= volt_cnt + 1;
@@ -327,48 +327,48 @@ module system_monitor(
                   startup_select <= startup_select + 1'd1;
                end
             end
-            
+
             if (startup_select > 11'sd127 || startup_select < -11'sd127) begin // determine type based on which delivered higher values for some seconds
                startup_done <= 1'b1;
             end
          end
-         
+
          if (volt_cnt[8]) begin
             volt_sum    <= 22'd0;
             volt_cnt    <=  9'd0;
             volt        <= volt_sum[21:8];
             transmitVolt <= 1'b1;
          end
-         
+
          if (gSecondEna) blink <= ~blink;
-         
+
          low_battery <= 1'd0;
          LED_Red     <= 1'd0;
          LED_Green   <= 1'd0;
          LED_Yellow  <= 1'd0;
          LED_White   <= 1'd0;
-         
+
          if (volt >= 700) begin // ~1.8V
-         
+
             if (pmic_sys_status[2]) begin // charging
-            
+
                if(bat_is_LI && volt < VOLTAGE_FULL) begin
                   LED_White   <= 1'd1;
                end
-            
+
             end else begin
-         
+
                if(volt < VOLTAGE_RED) begin
                   low_battery <= 1'd1;
                   if (blink) LED_Red <= 1'd1;
                end
-               
-            end 
-            
+
+            end
+
          end
-      end 
-   end 
-    
+      end
+   end
+
     wire [6:0] tx_address;
     wire       write;
 
@@ -385,18 +385,18 @@ module system_monitor(
         BTN_SEL,
         BTN_START
     };
-    
+
     reg [13:0] version = {
         1'd0,  // 1 bit reserved
         1'd0,  // 1 bit debug,
-        6'd7,  // 6 bits minor version
+        6'd8,  // 6 bits minor version
         6'd18  // 6 bits major version
     };
-    
+
     localparam  NUM_CH = 10;
     wire [$clog2(NUM_CH)-1:0] tx_channel;
-    
-    wire [NUM_CH-1:0] channelsNewDataValid = 
+
+    wire [NUM_CH-1:0] channelsNewDataValid =
     {
         request_gpd,                                  // Game Palette Data
         ~menuDisabled | request_SystemStatusExtended, // System Status Extended
@@ -409,54 +409,54 @@ module system_monitor(
         (~menuDisabled & transmitVolt & bat_is_LI),   // Lithium
         (~menuDisabled & transmitVolt & ~bat_is_LI)   // AA
     };
-    
+
     wire [13:0] audio_brightness = {2'd0, brightness, hHeadphones, hVolume};
     wire [13:0] mic_sys_status = {6'd0 , pmic_sys_status};
-    
+
     wire [7:0] tx_byteCount = (tx_channel == 0) ? 8'd2 : // AA
-                              (tx_channel == 1) ? 8'd2 : // Lithium 
-                              (tx_channel == 2) ? 8'd2 : // Buttons 
-                              (tx_channel == 3) ? 8'd2 : // Audio + Brightness 
-                              (tx_channel == 4) ? 8'd2 : // System Control 
-                              (tx_channel == 5) ? 8'd2 : // pmic sys status 
+                              (tx_channel == 1) ? 8'd2 : // Lithium
+                              (tx_channel == 2) ? 8'd2 : // Buttons
+                              (tx_channel == 3) ? 8'd2 : // Audio + Brightness
+                              (tx_channel == 4) ? 8'd2 : // System Control
+                              (tx_channel == 5) ? 8'd2 : // pmic sys status
                               (tx_channel == 6) ? 8'd2 : // version info
                               (tx_channel == 7) ? 8'd4 : // reserved
                               (tx_channel == 8) ? 8'd4 : // System Status Extended
                               (tx_channel == 9) ? 8'd8 : // BG Palette Data
                               8'd1;
-    
+
     wire [7:0] tx_bytepos;
-    
+
     wire [7:0] tx_senddata = (tx_channel == 0 && tx_bytepos == 0) ? {2'd0, volt[13:8]} : // AA
                              (tx_channel == 0 && tx_bytepos == 1) ? volt[7:0] :
-                             
-                             (tx_channel == 1 && tx_bytepos == 0) ? {2'd0, volt[13:8]} : // Lithium 
+
+                             (tx_channel == 1 && tx_bytepos == 0) ? {2'd0, volt[13:8]} : // Lithium
                              (tx_channel == 1 && tx_bytepos == 1) ? volt[7:0] :
-                             
-                             (tx_channel == 2 && tx_bytepos == 0) ? {2'd0, buttons[13:8]} : // Buttons 
-                             (tx_channel == 2 && tx_bytepos == 1) ? buttons[7:0] : 
-                             
-                             (tx_channel == 3 && tx_bytepos == 0) ? {2'd0, audio_brightness[13:8]} : // Audio + Brightness 
+
+                             (tx_channel == 2 && tx_bytepos == 0) ? {2'd0, buttons[13:8]} : // Buttons
+                             (tx_channel == 2 && tx_bytepos == 1) ? buttons[7:0] :
+
+                             (tx_channel == 3 && tx_bytepos == 0) ? {2'd0, audio_brightness[13:8]} : // Audio + Brightness
                              (tx_channel == 3 && tx_bytepos == 1) ? audio_brightness[7:0] :
-                             
-                             (tx_channel == 4 && tx_bytepos == 0) ? {2'd0, system_control[13:8]} : // System Control 
+
+                             (tx_channel == 4 && tx_bytepos == 0) ? {2'd0, system_control[13:8]} : // System Control
                              (tx_channel == 4 && tx_bytepos == 1) ? system_control[7:0] :
-                             
-                             (tx_channel == 5 && tx_bytepos == 0) ? {2'd0, mic_sys_status[13:8]} : // pmic sys status 
-                             (tx_channel == 5 && tx_bytepos == 1) ? mic_sys_status[7:0]  : 
-                             
+
+                             (tx_channel == 5 && tx_bytepos == 0) ? {2'd0, mic_sys_status[13:8]} : // pmic sys status
+                             (tx_channel == 5 && tx_bytepos == 1) ? mic_sys_status[7:0]  :
+
                              (tx_channel == 6 && tx_bytepos == 0) ? {2'd0, version[13:8]} : // version info
-                             (tx_channel == 6 && tx_bytepos == 1) ? version[7:0] : 
-                             
+                             (tx_channel == 6 && tx_bytepos == 1) ? version[7:0] :
+
                              (tx_channel == 7 && tx_bytepos == 0) ? 8'd0 : // reserved
-                             (tx_channel == 7 && tx_bytepos == 1) ? 8'd0 : 
-                             (tx_channel == 7 && tx_bytepos == 2) ? 8'd0 : 
-                             (tx_channel == 7 && tx_bytepos == 3) ? 8'd0 : 
-                             
+                             (tx_channel == 7 && tx_bytepos == 1) ? 8'd0 :
+                             (tx_channel == 7 && tx_bytepos == 2) ? 8'd0 :
+                             (tx_channel == 7 && tx_bytepos == 3) ? 8'd0 :
+
                              (tx_channel == 8 && tx_bytepos == 0) ? {6'd0, gbc_mode, lowpowerBacklight} : // System Status Extended
-                             (tx_channel == 8 && tx_bytepos == 1) ? 8'd0 : 
-                             (tx_channel == 8 && tx_bytepos == 2) ? 8'd0 : 
-                             (tx_channel == 8 && tx_bytepos == 3) ? 8'd0 : 
+                             (tx_channel == 8 && tx_bytepos == 1) ? 8'd0 :
+                             (tx_channel == 8 && tx_bytepos == 2) ? 8'd0 :
+                             (tx_channel == 8 && tx_bytepos == 3) ? 8'd0 :
 
                              (tx_channel == 9 && tx_bytepos == 0) ? gpd[7:0] : // Combined Game Palette Data
                              (tx_channel == 9 && tx_bytepos == 1) ? gpd[15:8] :
@@ -467,10 +467,10 @@ module system_monitor(
                              (tx_channel == 9 && tx_bytepos == 6) ? gpd[55:48] :
                              (tx_channel == 9 && tx_bytepos == 7) ? gpd[63:56] :
                              8'd0;
-    
+
     wire uartDisabled;
-    
-    system_monitor_arbiter 
+
+    system_monitor_arbiter
     #(
         .NUM_CH(NUM_CH)
     ) u_system_monitor_arbiter
@@ -486,7 +486,7 @@ module system_monitor(
         .write_done(write_done),
         .write(write)
     );
-    
+
     uart_packet_wrapper_tx u_uart_packet_wrapper_tx
     (
         .clk(clk),
@@ -497,13 +497,13 @@ module system_monitor(
         .uartDisabled(uartDisabled),
         .menuDisabled(menuDisabled),
         .write(write),
-        .write_done(write_done),      
+        .write_done(write_done),
         .tx_address(tx_address),
         .tx_byteCount(tx_byteCount),
         .tx_bytepos(tx_bytepos),
         .tx_senddata(tx_senddata)
     );
-    
+
     uart_packet_wrapper_rx u_uart_packet_wrapper_rx
     (
         .clk(clk),

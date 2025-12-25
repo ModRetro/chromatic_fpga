@@ -1,3 +1,12 @@
+## v18.8
+
+### Changed
+- Enable audio until ESP32 can configure the FPGA
+
+### Fixed
+- IO0/En control sometimes fails to boot the ESP32
+- The FPGA sometimes resets during play
+
 ## v18.7
 
 ### Fixed

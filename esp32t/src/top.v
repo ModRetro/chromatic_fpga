@@ -520,17 +520,44 @@ module top #(parameter ISSIMU=0)
     wire UART_RTS;
     wire [1:0] DTRRTS = {UART_DTR, UART_RTS};
 
+
+
+    reg [11:0] ESP_BOOT_DELAY_COUNTER = 0;
+    reg [7:0] ESP_BOOT_DELAY_SHIFT = 0;
+
+
+    reg ESP32_EN_INT = 1;
+    reg ESP32_IO0_INT = 1;
+
+    // 8MHz clock
+    always@(posedge gClk) begin
+
+        ESP32_IO0 <= ESP32_IO0_INT;
+
+        ESP_BOOT_DELAY_COUNTER <= ESP_BOOT_DELAY_COUNTER + 1'b1;
+
+        if(ESP_BOOT_DELAY_COUNTER == 0) begin
+            ESP_BOOT_DELAY_SHIFT <= {ESP_BOOT_DELAY_SHIFT[6:0], ESP32_EN_INT};
+            ESP32_EN <= ESP_BOOT_DELAY_SHIFT[7];
+           end
+
+        if(~ESP32_EN_INT) begin
+            ESP_BOOT_DELAY_SHIFT <= 8'b0;
+            ESP32_EN <= 0;
+        end
+    end
+
     always@(posedge PHY_CLKOUT or negedge usblocked)
     begin
         if(~usblocked)
         begin
-            ESP32_EN <= 1'd1;
-            ESP32_IO0 <= 1'd1;
+            ESP32_EN_INT <= 1'd1;
+            ESP32_IO0_INT <= 1'd1;
         end
         else
         begin
-            ESP32_EN <= ~UART_RTS;
-            ESP32_IO0 <= DTRRTS == 2'b00;
+            ESP32_EN_INT <= ~UART_RTS;
+            ESP32_IO0_INT <= (DTRRTS == 2'b00);
         end
     end
 
